@@ -21,6 +21,7 @@ import {
  */
 export interface DevOptions extends DevUrlInputOptions {
   componentModuleId?: string;
+  productionAssets?: boolean;
 }
 
 function logCodeComponentBuild(buildResult: CodeComponentBuildResult): void {
@@ -53,12 +54,20 @@ function getAdditionalWatchFiles(
 }
 
 export async function devAction(options: DevOptions = {}) {
-  const { componentModuleId } = options;
+  const { componentModuleId, productionAssets = false } = options;
   const devUrlMode = resolveDevUrlMode(options);
   const config = await parseConfigAction();
   const reloadEmitter = new events.EventEmitter();
 
   logger.info("Read the docs at https://github.com/peakpointch/peakflow-cli");
+
+  if (productionAssets) {
+    logger.info(
+      "Production assets mode: proxying Webflow without local builds or injection",
+    );
+    startWebflowProxy(config, reloadEmitter, { productionAssets: true });
+    return;
+  }
 
   // Initial build
   await buildDev(config);

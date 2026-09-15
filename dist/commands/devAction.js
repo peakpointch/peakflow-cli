@@ -33,11 +33,18 @@ function getAdditionalWatchFiles(watchList, inputFiles) {
   );
 }
 async function devAction(options = {}) {
-  const { componentModuleId } = options;
+  const { componentModuleId, productionAssets = false } = options;
   const devUrlMode = resolveDevUrlMode(options);
   const config = await parseConfigAction();
   const reloadEmitter = new events.EventEmitter();
   logger.info("Read the docs at https://github.com/peakpointch/peakflow-cli");
+  if (productionAssets) {
+    logger.info(
+      "Production assets mode: proxying Webflow without local builds or injection"
+    );
+    startWebflowProxy(config, reloadEmitter, { productionAssets: true });
+    return;
+  }
   await buildDev(config);
   const codeComponentBuilder = await createCodeComponentBuilder(config, {
     devUrlMode

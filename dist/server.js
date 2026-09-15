@@ -77,7 +77,7 @@ async function requestWebflowGET(config, proxyReq) {
     responseType: "arraybuffer"
   });
 }
-function routeGetRequests(app, config, localCodeComponents, componentModuleId, devUrlOptions) {
+function routeGetRequests(app, config, localCodeComponents, componentModuleId, devUrlOptions, productionAssets = false) {
   app.get(/.*/, async (proxyReq, proxyRes) => {
     const performanceStart = performance.now();
     let assetMessage = "";
@@ -93,7 +93,7 @@ function routeGetRequests(app, config, localCodeComponents, componentModuleId, d
       proxyRes.status(webflowRes.status);
       const contentType = getContentType(webflowRes.headers);
       const responseIsHtml = contentType.includes("text/html");
-      if (responseIsHtml) {
+      if (responseIsHtml && !productionAssets) {
         const html = Buffer.from(webflowRes.data).toString("utf8");
         const pipelineResult = htmlPipeline(html, {
           componentModuleId,
@@ -203,16 +203,19 @@ function setupLivereload(app, reloadEmitter, config) {
 }
 function startWebflowProxy(config, reloadEmitter, {
   componentModuleId,
-  devUrlMode = { type: "localhost" }
+  devUrlMode = { type: "localhost" },
+  productionAssets = false
 } = {}) {
   const app = express();
   let localCodeComponents;
-  try {
-    localCodeComponents = loadLocalCodeComponentLibrary(config, {
-      devUrlMode
-    });
-  } catch (err) {
-    logger.warn("Failed to load local Code Component library:", err);
+  if (!productionAssets) {
+    try {
+      localCodeComponents = loadLocalCodeComponentLibrary(config, {
+        devUrlMode
+      });
+    } catch (err) {
+      logger.warn("Failed to load local Code Component library:", err);
+    }
   }
   app.use(
     cors({
@@ -221,27 +224,38 @@ function startWebflowProxy(config, reloadEmitter, {
     })
   );
   app.use(cookieParser());
-  app.use(routes.app, serveCacheBustedCss);
-  app.use(
-    routes.app,
-    express.static(process.cwd(), {
-      etag: false,
-      lastModified: false,
-      setHeaders: (response) => {
-        response.setHeader("Cache-Control", "no-store");
-      }
-    })
-  );
-  app.use(
-    routes.server,
-    express.static(path.resolve(import.meta.dirname, ".."))
-  );
+  if (!productionAssets) {
+    app.use(routes.app, serveCacheBustedCss);
+    app.use(
+      routes.app,
+      express.static(process.cwd(), {
+        etag: false,
+        lastModified: false,
+        setHeaders: (response) => {
+          response.setHeader("Cache-Control", "no-store");
+        }
+      })
+    );
+    app.use(
+      routes.server,
+      express.static(path.resolve(import.meta.dirname, ".."))
+    );
+  }
   app.use(express.urlencoded({ extended: true }));
   app.use(express.json());
-  setupLivereload(app, reloadEmitter, config);
-  routeGetRequests(app, config, localCodeComponents, componentModuleId, {
-    devUrlMode
-  });
+  if (!productionAssets) {
+    setupLivereload(app, reloadEmitter, config);
+  }
+  routeGetRequests(
+    app,
+    config,
+    localCodeComponents,
+    componentModuleId,
+    {
+      devUrlMode
+    },
+    productionAssets
+  );
   routeWebflowAuthRequests(app, config);
   app.listen(config.devServer.port, () => {
     if (localCodeComponents) {

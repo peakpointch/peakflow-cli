@@ -43,6 +43,11 @@ program.command("dev").description("Start the development server").option(
       throw new InvalidArgumentError("must be an absolute HTTP(S) origin");
     }
   }).conflicts("relativeUrls")
+).addOption(
+  new Option(
+    "--production-assets",
+    "Proxy Webflow without building or injecting local assets"
+  ).conflicts(["baseUrl", "componentModuleId", "relativeUrls"])
 ).action(devAction);
 program.command("build").description("Build the production bundle").action(buildAction);
 auth.command("login").description("Log in and store credentials").action(authLoginAction);

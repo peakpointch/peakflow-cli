@@ -70,6 +70,12 @@ program
       })
       .conflicts("relativeUrls"),
   )
+  .addOption(
+    new Option(
+      "--production-assets",
+      "Proxy Webflow without building or injecting local assets",
+    ).conflicts(["baseUrl", "componentModuleId", "relativeUrls"]),
+  )
   .action(devAction);
 
 program

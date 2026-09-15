@@ -83,9 +83,8 @@ async function codeListAction({ json, verbose }) {
     `Found ${logger.num(blocks.length)} custom code blocks in site ${logger.var(wfConfig.siteId)}.`
   );
   if (!blocks.length) return;
-  logger.logger.info();
   if (json) {
-    logger.logger.info(logger.json(blocks));
+    logger.continue(logger.json(blocks));
     return;
   }
   const pages = await fetchPages(client, wfConfig.siteId);
@@ -140,11 +139,11 @@ async function codeListAction({ json, verbose }) {
       formatTitle: (cell) => chalk.bold(cell)
     }
   ]);
-  logger.logger.info(
+  logger.continue(
     table.toString({
       titleRow: true,
       rowCount: true,
-      prefix: "  "
+      prefix: "   "
     })
   );
 }

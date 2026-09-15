@@ -117,10 +117,8 @@ export async function codeListAction({ json, verbose }: CodeListOptions) {
 
   if (!blocks.length) return;
 
-  logger.logger.info();
-
   if (json) {
-    logger.logger.info(logger.json(blocks));
+    logger.continue(logger.json(blocks));
     return;
   }
 
@@ -189,11 +187,11 @@ export async function codeListAction({ json, verbose }: CodeListOptions) {
     },
   ]);
 
-  logger.logger.info(
+  logger.continue(
     table.toString({
       titleRow: true,
       rowCount: true,
-      prefix: "  ",
+      prefix: "   ",
     }),
   );
 }

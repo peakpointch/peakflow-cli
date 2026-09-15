@@ -107,6 +107,18 @@ async function registerMissingScripts({
       scriptsToPublish.set(key, existing);
       continue;
     }
+    const unchangedSince = validScripts.find(
+      (script) => script.displayName === request.displayName && script.integrityHash === request.integrityHash && script.version !== request.version
+    );
+    if (unchangedSince) {
+      const oldVersion = unchangedSince.version;
+      const newVersion = request.version;
+      logger.warn(
+        `Script content of ${logger.var(request.displayName)}`,
+        `hasn't changed, but its version was bumped from ${logger.var(oldVersion)} to`,
+        `${logger.var(newVersion)}.`
+      );
+    }
     missingRequests.push(request);
   }
   logger.info(
@@ -141,7 +153,8 @@ async function registerMissingScripts({
           titleRow: true,
           prefix: logger.indent + " ",
           rowCount: true
-        })
+        }),
+        logger.newLine
       );
     }
   }

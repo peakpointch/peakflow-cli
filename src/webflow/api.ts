@@ -172,6 +172,23 @@ export async function registerMissingScripts({
       continue;
     }
 
+    const unchangedSince = validScripts.find(
+      (script) =>
+        script.displayName === request.displayName &&
+        script.integrityHash === request.integrityHash &&
+        script.version !== request.version,
+    );
+
+    if (unchangedSince) {
+      const oldVersion = unchangedSince.version;
+      const newVersion = request.version;
+      logger.warn(
+        `Script content of ${logger.var(request.displayName)}`,
+        `hasn't changed, but its version was bumped from ${logger.var(oldVersion)} to`,
+        `${logger.var(newVersion)}.`,
+      );
+    }
+
     missingRequests.push(request);
   }
 
@@ -210,6 +227,7 @@ export async function registerMissingScripts({
           prefix: logger.indent + " ",
           rowCount: true,
         }),
+        logger.newLine,
       );
     }
   }

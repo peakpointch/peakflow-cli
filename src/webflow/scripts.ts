@@ -13,7 +13,9 @@ import { generateIdentityHash } from "../helpers/hash.js";
 import type { OptionDryRun } from "../types/cli.js";
 import type { ScriptIdentity } from "../types/webflow.js";
 
-export function isScriptIdentity(script: any): script is ScriptIdentity {
+export function isScriptIdentity(
+  script: any,
+): script is Webflow.CustomCodeHostedResponse & ScriptIdentity {
   return (
     typeof script?.displayName === "string" &&
     typeof script?.integrityHash === "string" &&
@@ -23,7 +25,7 @@ export function isScriptIdentity(script: any): script is ScriptIdentity {
 
 export function assertScriptIdentity(
   script: any,
-): asserts script is ScriptIdentity {
+): asserts script is Webflow.CustomCodeHostedResponse & ScriptIdentity {
   if (!isScriptIdentity(script)) {
     throw new TypeError(`Expected a valid script identity`);
   }

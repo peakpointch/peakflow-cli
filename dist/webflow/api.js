@@ -1,10 +1,16 @@
 import chalk from "chalk";
 import { WebflowClient } from "webflow-api";
 import { getUniqueModules } from "../config/modules.js";
-import { generateRegisterScripts, generateUpsertScripts } from "./scripts.js";
-import { logger } from "../helpers/taskLogger.js";
+import {
+  assertScriptIdentity,
+  isScriptIdentity,
+  generateRegisterScripts,
+  generateUpsertScripts
+} from "./scripts.js";
+import { generateIdentityHash } from "../helpers/hash.js";
 import { getIntegrationToken } from "../helpers/auth.js";
 import { matchPages } from "../helpers/pageMatcher.js";
+import { logger } from "../helpers/taskLogger.js";
 import { errorToString } from "../helpers/utils.js";
 import { Table } from "../helpers/table.js";
 function getWebflowClient() {
@@ -88,18 +94,20 @@ async function registerMissingScripts({
 }) {
   const modules = getUniqueModules(config.environments);
   const allRequests = await generateRegisterScripts(modules, config.repository);
-  const scriptsByHash = new Map(
-    scripts.map((script) => [script.integrityHash, script])
+  const validScripts = scripts.filter(isScriptIdentity);
+  const scriptsByKey = new Map(
+    validScripts.map((script) => [generateIdentityHash(script), script])
   );
   const scriptsToPublish = /* @__PURE__ */ new Map();
   const missingRequests = [];
   for (const request of allRequests) {
-    const existing = scriptsByHash.get(request.integrityHash);
+    const key = generateIdentityHash(request);
+    const existing = scriptsByKey.get(key);
     if (existing?.integrityHash) {
-      scriptsToPublish.set(existing.integrityHash, existing);
-    } else {
-      missingRequests.push(request);
+      scriptsToPublish.set(key, existing);
+      continue;
     }
+    missingRequests.push(request);
   }
   logger.info(
     `Found ${logger.num(missingRequests.length)} new scripts to register.`
@@ -146,12 +154,9 @@ async function registerMissingScripts({
     })
   );
   for (const script of newScripts) {
-    if (!script.integrityHash) {
-      throw new Error(
-        `Failed to register hosted script: missing integrity hash`
-      );
-    }
-    scriptsToPublish.set(script.integrityHash, script);
+    assertScriptIdentity(script);
+    const key = generateIdentityHash(script);
+    scriptsToPublish.set(key, script);
   }
   return scriptsToPublish;
 }
@@ -172,7 +177,7 @@ async function publishEnvironment({
   const matchedPages = matchPages(pages, env.pages);
   const upsertScriptsRequest = await generateUpsertScripts({
     modules: env.modules,
-    scriptsByHash: scripts,
+    scripts,
     repo: config.repository,
     dryRun
   });

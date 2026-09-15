@@ -9,7 +9,25 @@ import {
   getModuleHash,
 } from "../config/modules.js";
 import { assetDataset } from "../helpers/dataset.js";
+import { generateIdentityHash } from "../helpers/hash.js";
 import type { OptionDryRun } from "../types/cli.js";
+import type { ScriptIdentity } from "../types/webflow.js";
+
+export function isScriptIdentity(script: any): script is ScriptIdentity {
+  return (
+    typeof script?.displayName === "string" &&
+    typeof script?.integrityHash === "string" &&
+    typeof script?.version === "string"
+  );
+}
+
+export function assertScriptIdentity(
+  script: any,
+): asserts script is ScriptIdentity {
+  if (!isScriptIdentity(script)) {
+    throw new TypeError(`Expected a valid script identity`);
+  }
+}
 
 /**
  * Build a register request for each unique module
@@ -34,7 +52,7 @@ export async function generateRegisterScripts(
 
 export type GenerateUpsertScriptsOptions = {
   modules: PeakflowModule[];
-  scriptsByHash: Map<string, Webflow.CustomCodeHostedResponse>;
+  scripts: Map<string, Webflow.CustomCodeHostedResponse>;
   repo: PeakflowRepo;
 } & OptionDryRun;
 
@@ -43,14 +61,20 @@ export type GenerateUpsertScriptsOptions = {
  */
 export async function generateUpsertScripts({
   modules,
-  scriptsByHash,
+  scripts: scriptsByHash,
   repo,
   dryRun = false,
 }: GenerateUpsertScriptsOptions): Promise<Webflow.ScriptApply[]> {
   return Promise.all(
     modules.map(async (mod) => {
-      const scriptHash = await getModuleHash(repo, mod);
-      const script = scriptsByHash.get(scriptHash);
+      const filePath = getFilePath(mod.path);
+      const integrityHash = await getModuleHash(repo, mod);
+      const key = generateIdentityHash({
+        displayName: getDisplayName(filePath),
+        integrityHash,
+        version: mod.version,
+      });
+      const script = scriptsByHash.get(key);
 
       if (!dryRun && !script?.id) {
         logger.debug("Found script is invalid:", logger.newLine, script);
@@ -58,12 +82,12 @@ export async function generateUpsertScripts({
       }
 
       return {
-        id: script?.id ?? `${getFilePath(mod.path)} [unregistered]`,
+        id: script?.id ?? `${filePath} [unregistered]`,
         location: mod.path.endsWith(".css") ? "header" : "footer",
         version: mod.version,
         attributes: {
           [assetDataset.attr.hmr]: "true",
-          [assetDataset.attr.local]: getFilePath(mod.path),
+          [assetDataset.attr.local]: filePath,
         },
       };
     }),

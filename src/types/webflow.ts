@@ -18,3 +18,9 @@ interface WebflowLibrary {
 interface WebflowTelemetry {
   [x: string]: any;
 }
+
+export type ScriptIdentity = {
+  displayName: string;
+  integrityHash: string;
+  version: string;
+};

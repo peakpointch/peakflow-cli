@@ -121,6 +121,7 @@ const cmsLogger = new TaskLogger("CMS");
 const configLogger = new TaskLogger("Config");
 const devLogger = new TaskLogger("Dev");
 const buildLogger = new TaskLogger("Build");
+const testLogger = new TaskLogger("Test");
 export {
   TaskLogger,
   authLogger,
@@ -128,5 +129,6 @@ export {
   cmsLogger,
   configLogger,
   devLogger,
-  logger
+  logger,
+  testLogger
 };

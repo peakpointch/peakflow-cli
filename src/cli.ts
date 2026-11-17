@@ -20,6 +20,7 @@ import {
   codeUnpublishAction,
 } from "./commands/codeAction.js";
 import { normalizeDevBaseUrl } from "./helpers/devUrl.js";
+import { addTestCommand } from "./commands/testAction.js";
 
 initialize();
 
@@ -82,6 +83,8 @@ program
   .command("build")
   .description("Build the production bundle")
   .action(buildAction);
+
+addTestCommand(program);
 
 auth
   .command("login")

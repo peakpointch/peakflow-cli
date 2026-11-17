@@ -18,6 +18,7 @@ import {
   codeUnpublishAction
 } from "./commands/codeAction.js";
 import { normalizeDevBaseUrl } from "./helpers/devUrl.js";
+import { addTestCommand } from "./commands/testAction.js";
 initialize();
 const program = new Command();
 const auth = program.command("auth").description("Manage authentication");
@@ -50,6 +51,7 @@ program.command("dev").description("Start the development server").option(
   ).conflicts(["baseUrl", "componentModuleId", "relativeUrls"])
 ).action(devAction);
 program.command("build").description("Build the production bundle").action(buildAction);
+addTestCommand(program);
 auth.command("login").description("Log in and store credentials").action(authLoginAction);
 auth.command("logout").description("Log out and remove stored credentials").action(authLogoutAction);
 auth.command("status").description("Show current authentication status").action(authStatusAction);

@@ -1,7 +1,7 @@
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
 
-export const peakflowDirectoryName = ".peakflow";
+export const PEAKFLOW_DIRECTORY_NAME = ".peakflow";
 
 export interface EnsurePeakflowDirectoryOptions {
   cwd?: string;
@@ -17,7 +17,7 @@ export async function ensurePeakflowDirectory(
   options: EnsurePeakflowDirectoryOptions = {},
 ): Promise<string> {
   const projectDirectory = options.cwd ?? process.cwd();
-  const directory = path.resolve(projectDirectory, peakflowDirectoryName);
+  const directory = path.resolve(projectDirectory, PEAKFLOW_DIRECTORY_NAME);
 
   await mkdir(directory, { recursive: true });
   return directory;

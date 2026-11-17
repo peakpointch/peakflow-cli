@@ -4,7 +4,7 @@ import path from "node:path";
 
 import { describe, expect, jest, test } from "@jest/globals";
 
-import { captureWebsiteSnapshot } from "../../src/testing/snapshot.js";
+import { captureSnapshot } from "../../src/testing/snapshot.js";
 import { resolveTestTarget } from "../../src/testing/targets.js";
 import type {
   FetchPage,
@@ -61,7 +61,7 @@ async function createTempDirectory(): Promise<string> {
   return mkdtemp(path.join(os.tmpdir(), "peakflow-snapshot-test-"));
 }
 
-describe(captureWebsiteSnapshot.name, () => {
+describe(captureSnapshot.name, () => {
   test("captures pages in input order and writes a versioned manifest", async () => {
     const directory = await createTempDirectory();
     const pages = [
@@ -79,7 +79,7 @@ describe(captureWebsiteSnapshot.name, () => {
     );
 
     try {
-      const capture = await captureWebsiteSnapshot(createInput(pages), {
+      const capture = await captureSnapshot(createInput(pages), {
         fetchPage,
         manifestDirectory: directory,
       });
@@ -119,7 +119,7 @@ describe(captureWebsiteSnapshot.name, () => {
     const pages = [new URL("https://example.com/page")];
 
     try {
-      const capture = await captureWebsiteSnapshot(createInput(pages), {
+      const capture = await captureSnapshot(createInput(pages), {
         projectDirectory,
         fetchPage: async (url) => successfulPage(url),
       });
@@ -151,7 +151,7 @@ describe(captureWebsiteSnapshot.name, () => {
     const onPageError = jest.fn<WebsiteSnapshotPageErrorHandler>();
 
     try {
-      const capture = await captureWebsiteSnapshot(createInput(pages), {
+      const capture = await captureSnapshot(createInput(pages), {
         concurrency: 2,
         fetchPage,
         manifestDirectory: directory,
@@ -199,7 +199,7 @@ describe(captureWebsiteSnapshot.name, () => {
     };
 
     try {
-      const capture = await captureWebsiteSnapshot(createInput(pages), {
+      const capture = await captureSnapshot(createInput(pages), {
         concurrency: 2,
         fetchPage,
         manifestDirectory: directory,
@@ -217,7 +217,7 @@ describe(captureWebsiteSnapshot.name, () => {
     "rejects invalid concurrency %s",
     async (concurrency) => {
       await expect(
-        captureWebsiteSnapshot(createInput([]), { concurrency }),
+        captureSnapshot(createInput([]), { concurrency }),
       ).rejects.toThrow("Snapshot concurrency must be a positive integer.");
     },
   );

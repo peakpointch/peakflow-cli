@@ -78,10 +78,10 @@ async function capturePage(url, getPage) {
     };
   }
 }
-async function createManifestDirectory(peakflowDirectory) {
+async function createTestRunDirectory(peakflowDirectory) {
   return mkdtemp(path.join(peakflowDirectory, "website-test-"));
 }
-async function ensureProjectManifestDirectory(projectDirectory) {
+async function resolveManifestDirectory(projectDirectory) {
   if (projectDirectory === void 0) {
     return ensurePeakflowDirectory();
   }
@@ -100,7 +100,7 @@ function notifyPageErrors(errors, onPageError) {
   if (!onPageError) return;
   for (const error of errors) onPageError(error);
 }
-async function captureWebsiteSnapshot(input, options = {}) {
+async function captureSnapshot(input, options = {}) {
   const concurrency = options.concurrency ?? defaultConcurrency;
   validateConcurrency(concurrency);
   const getPage = options.fetchPage ?? fetchPage;
@@ -128,11 +128,11 @@ async function captureWebsiteSnapshot(input, options = {}) {
   };
   let manifestDirectory = options.manifestDirectory;
   if (manifestDirectory === void 0) {
-    manifestDirectory = await ensureProjectManifestDirectory(
+    manifestDirectory = await resolveManifestDirectory(
       options.projectDirectory
     );
   }
-  const directory = await createManifestDirectory(manifestDirectory);
+  const directory = await createTestRunDirectory(manifestDirectory);
   const manifestPath = path.join(directory, manifestFileName);
   try {
     await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}
@@ -150,6 +150,6 @@ async function captureWebsiteSnapshot(input, options = {}) {
   };
 }
 export {
-  captureWebsiteSnapshot,
+  captureSnapshot,
   fetchPage
 };

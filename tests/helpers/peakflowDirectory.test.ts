@@ -5,8 +5,8 @@ import path from "node:path";
 import { describe, expect, test } from "@jest/globals";
 
 import {
+  PEAKFLOW_DIRECTORY_NAME,
   ensurePeakflowDirectory,
-  peakflowDirectoryName,
 } from "../../src/helpers/peakflowDirectory.js";
 
 describe(ensurePeakflowDirectory.name, () => {
@@ -16,7 +16,7 @@ describe(ensurePeakflowDirectory.name, () => {
     );
     const peakflowDirectory = path.join(
       projectDirectory,
-      peakflowDirectoryName,
+      PEAKFLOW_DIRECTORY_NAME,
     );
 
     try {

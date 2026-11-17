@@ -184,7 +184,7 @@ async function capturePage(
  * @param peakflowDirectory - Existing project `.peakflow` directory.
  * @returns The created website test run directory path.
  */
-async function createManifestDirectory(
+async function createTestRunDirectory(
   peakflowDirectory: string,
 ): Promise<string> {
   return mkdtemp(path.join(peakflowDirectory, "website-test-"));
@@ -196,7 +196,7 @@ async function createManifestDirectory(
  * @param projectDirectory - Optional project working-directory override.
  * @returns The ensured project `.peakflow` directory.
  */
-async function ensureProjectManifestDirectory(
+async function resolveManifestDirectory(
   projectDirectory: string | undefined,
 ): Promise<string> {
   if (projectDirectory === undefined) {
@@ -247,7 +247,7 @@ function notifyPageErrors(
  * @param options - Fetch, concurrency, manifest, and warning options.
  * @returns The manifest, its path, and an idempotent cleanup function.
  */
-export async function captureWebsiteSnapshot(
+export async function captureSnapshot(
   input: WebsiteSnapshotCaptureInput,
   options: WebsiteSnapshotCaptureOptions = {},
 ): Promise<WebsiteSnapshotCapture> {
@@ -283,12 +283,12 @@ export async function captureWebsiteSnapshot(
   let manifestDirectory = options.manifestDirectory;
 
   if (manifestDirectory === undefined) {
-    manifestDirectory = await ensureProjectManifestDirectory(
+    manifestDirectory = await resolveManifestDirectory(
       options.projectDirectory,
     );
   }
 
-  const directory = await createManifestDirectory(manifestDirectory);
+  const directory = await createTestRunDirectory(manifestDirectory);
   const manifestPath = path.join(directory, manifestFileName);
 
   try {

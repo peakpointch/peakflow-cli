@@ -3,7 +3,7 @@ import {
   parsePhoneNumberFromString
 } from "libphonenumber-js/max";
 const phoneLinksModuleId = "phone-links";
-function decodePhoneHrefPayload(payload) {
+function decodeTelPayload(payload) {
   try {
     return decodeURIComponent(payload);
   } catch {
@@ -12,7 +12,7 @@ function decodePhoneHrefPayload(payload) {
 }
 function parsePhoneHref(href) {
   const payload = href.slice(href.indexOf(":") + 1);
-  const decodedPayload = decodePhoneHrefPayload(payload);
+  const decodedPayload = decodeTelPayload(payload);
   const phone = parsePhoneNumberFromString(decodedPayload, "CH");
   const isValidSwiss = phone?.country === "CH" && phone.isValid() && phone.ext === void 0;
   const canonical = isValidSwiss ? phone.number : void 0;
@@ -22,7 +22,7 @@ function parsePhoneHref(href) {
     isCanonical: canonical !== void 0 && payload === canonical
   };
 }
-function getDisplayedPhoneNumbers(text) {
+function findPhoneNumbers(text) {
   return findPhoneNumbersInText(text, "CH").map(({ number }) => number).filter(
     (number) => number.country === "CH" && number.isValid() && !number.ext
   ).map((number) => number.number);
@@ -88,7 +88,7 @@ class PhoneLinksModule {
           })
         );
       }
-      const displayedNumbers = getDisplayedPhoneNumbers(text);
+      const displayedNumbers = findPhoneNumbers(text);
       if (displayedNumbers.length > 0 && parsedHref.canonical && !displayedNumbers.includes(parsedHref.canonical)) {
         findings.push(
           createFinding({

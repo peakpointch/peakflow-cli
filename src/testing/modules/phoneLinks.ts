@@ -28,7 +28,7 @@ interface PhoneFindingOptions {
   evidence: AuditEvidence;
 }
 
-function decodePhoneHrefPayload(payload: string): string {
+function decodeTelPayload(payload: string): string {
   try {
     return decodeURIComponent(payload);
   } catch {
@@ -38,7 +38,7 @@ function decodePhoneHrefPayload(payload: string): string {
 
 function parsePhoneHref(href: string): ParsedPhoneHref {
   const payload = href.slice(href.indexOf(":") + 1);
-  const decodedPayload = decodePhoneHrefPayload(payload);
+  const decodedPayload = decodeTelPayload(payload);
   const phone = parsePhoneNumberFromString(decodedPayload, "CH");
   const isValidSwiss =
     phone?.country === "CH" && phone.isValid() && phone.ext === undefined;
@@ -51,7 +51,7 @@ function parsePhoneHref(href: string): ParsedPhoneHref {
   };
 }
 
-function getDisplayedPhoneNumbers(text: string): string[] {
+function findPhoneNumbers(text: string): string[] {
   return findPhoneNumbersInText(text, "CH")
     .map(({ number }) => number)
     .filter(
@@ -138,7 +138,7 @@ export class PhoneLinksModule implements AuditModule<HtmlPageContext> {
         );
       }
 
-      const displayedNumbers = getDisplayedPhoneNumbers(text);
+      const displayedNumbers = findPhoneNumbers(text);
 
       if (
         displayedNumbers.length > 0 &&

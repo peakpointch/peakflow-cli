@@ -100,7 +100,7 @@ function notifyPageErrors(errors, onPageError) {
   if (!onPageError) return;
   for (const error of errors) onPageError(error);
 }
-async function captureSnapshot(input, options = {}) {
+async function collectSnapshotPages(input, options) {
   const concurrency = options.concurrency ?? defaultConcurrency;
   validateConcurrency(concurrency);
   const getPage = options.fetchPage ?? fetchPage;
@@ -109,23 +109,29 @@ async function captureSnapshot(input, options = {}) {
     concurrency,
     (url) => capturePage(url, getPage)
   );
-  const pages = [];
-  const errors = [];
+  const collection = { pages: [], errors: [] };
   for (const result of results) {
     if (result.status === "success") {
-      pages.push(result.page);
-    } else {
-      errors.push(result.error);
+      collection.pages.push(result.page);
+      continue;
     }
+    collection.errors.push(result.error);
   }
-  notifyPageErrors(errors, options.onPageError);
-  const manifest = {
+  notifyPageErrors(collection.errors, options.onPageError);
+  return collection;
+}
+function createSnapshotManifest(input, collection) {
+  return {
     version: websiteSnapshotManifestVersion,
     createdAt: (/* @__PURE__ */ new Date()).toISOString(),
     source: createSource(input),
-    pages,
-    errors
+    pages: collection.pages,
+    errors: collection.errors
   };
+}
+async function captureSnapshot(input, options = {}) {
+  const collection = await collectSnapshotPages(input, options);
+  const manifest = createSnapshotManifest(input, collection);
   let manifestDirectory = options.manifestDirectory;
   if (manifestDirectory === void 0) {
     manifestDirectory = await resolveManifestDirectory(

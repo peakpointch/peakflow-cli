@@ -19,17 +19,34 @@ const defaultConcurrency = 5;
 const pageFetchTimeoutMs = 15_000;
 const manifestFileName = "website-snapshot.json";
 
+/**
+ * Represent a page that was fetched and converted to manifest data.
+ */
 interface SnapshotPageSuccess {
   status: "success";
   page: WebsiteSnapshotPageManifest;
 }
 
+/**
+ * Represent a page that could not be fetched for the snapshot.
+ */
 interface SnapshotPageFailure {
   status: "failure";
   error: WebsiteSnapshotFetchError;
 }
 
+/**
+ * Represent either a successful page capture or a page-fetch failure.
+ */
 type SnapshotPageResult = SnapshotPageSuccess | SnapshotPageFailure;
+
+/**
+ * Group successful page manifests and fetch errors collected during capture.
+ */
+interface SnapshotPageCollection {
+  pages: WebsiteSnapshotPageManifest[];
+  errors: WebsiteSnapshotFetchError[];
+}
 
 /**
  * Convert an unknown page-fetch failure into a readable message.
@@ -241,6 +258,61 @@ function notifyPageErrors(
 }
 
 /**
+ * Fetch all selected pages and separate successes from fetch failures.
+ *
+ * @param input - Target and resolved page selection for the run.
+ * @param options - Fetch, concurrency, and page-error callback options.
+ * @returns Ordered successful pages and fetch errors.
+ */
+async function collectSnapshotPages(
+  input: WebsiteSnapshotCaptureInput,
+  options: WebsiteSnapshotCaptureOptions,
+): Promise<SnapshotPageCollection> {
+  const concurrency = options.concurrency ?? defaultConcurrency;
+  validateConcurrency(concurrency);
+
+  const getPage = options.fetchPage ?? fetchPage;
+  const results = await runWorkerPool(
+    input.selection.pages,
+    concurrency,
+    (url) => capturePage(url, getPage),
+  );
+  const collection: SnapshotPageCollection = { pages: [], errors: [] };
+
+  for (const result of results) {
+    if (result.status === "success") {
+      collection.pages.push(result.page);
+      continue;
+    }
+
+    collection.errors.push(result.error);
+  }
+
+  notifyPageErrors(collection.errors, options.onPageError);
+  return collection;
+}
+
+/**
+ * Build a versioned manifest from the captured pages and errors.
+ *
+ * @param input - Target and resolved page selection for the run.
+ * @param collection - Captured pages and fetch errors.
+ * @returns Serializable website snapshot manifest.
+ */
+function createSnapshotManifest(
+  input: WebsiteSnapshotCaptureInput,
+  collection: SnapshotPageCollection,
+): WebsiteSnapshotManifest {
+  return {
+    version: websiteSnapshotManifestVersion,
+    createdAt: new Date().toISOString(),
+    source: createSource(input),
+    pages: collection.pages,
+    errors: collection.errors,
+  };
+}
+
+/**
  * Fetch selected pages and persist their HTML in a temporary manifest.
  *
  * @param input - Target and resolved page selection for the run.
@@ -251,35 +323,8 @@ export async function captureSnapshot(
   input: WebsiteSnapshotCaptureInput,
   options: WebsiteSnapshotCaptureOptions = {},
 ): Promise<WebsiteSnapshotCapture> {
-  const concurrency = options.concurrency ?? defaultConcurrency;
-  validateConcurrency(concurrency);
-
-  const getPage = options.fetchPage ?? fetchPage;
-  const results = await runWorkerPool(
-    input.selection.pages,
-    concurrency,
-    (url) => capturePage(url, getPage),
-  );
-  const pages: WebsiteSnapshotPageManifest[] = [];
-  const errors: WebsiteSnapshotFetchError[] = [];
-
-  for (const result of results) {
-    if (result.status === "success") {
-      pages.push(result.page);
-    } else {
-      errors.push(result.error);
-    }
-  }
-
-  notifyPageErrors(errors, options.onPageError);
-
-  const manifest: WebsiteSnapshotManifest = {
-    version: websiteSnapshotManifestVersion,
-    createdAt: new Date().toISOString(),
-    source: createSource(input),
-    pages,
-    errors,
-  };
+  const collection = await collectSnapshotPages(input, options);
+  const manifest = createSnapshotManifest(input, collection);
   let manifestDirectory = options.manifestDirectory;
 
   if (manifestDirectory === undefined) {
@@ -292,7 +337,8 @@ export async function captureSnapshot(
   const manifestPath = path.join(directory, manifestFileName);
 
   try {
-    await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, {
+    const content = JSON.stringify(manifest, null, 2);
+    await writeFile(manifestPath, content + "\n", {
       encoding: "utf8",
     });
   } catch (error) {

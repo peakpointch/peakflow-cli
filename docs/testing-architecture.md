@@ -1,6 +1,6 @@
 # Peakflow Testing Architecture
 
-Status: agreed direction; Jest integration is not implemented yet.
+Status: Jest integration implemented; opt-in audit migration pending.
 
 ## Responsibilities
 
@@ -58,10 +58,11 @@ command can run unit tests independently.
 
 ## Current implementation
 
-The current CLI fetches and analyzes static HTML directly with an internal
-`AuditModule` runner. That runner is a transitional implementation. The
-target-resolution, sitemap, phone-link, logging, and reporting behavior will
-be retained while test execution moves to the user's Jest project.
+The CLI fetches static HTML into a temporary website snapshot, then launches
+the user's project-local Jest installation with only the `website` project
+selected. Page-fetch failures and Jest failures are combined into the final
+exit status. The internal `AuditModule` runner remains temporarily for the
+phone audit migration but is no longer used by `peakflow test`.
 
 JavaScript is not executed in the current static mode. Browser-rendered tests
 are a future source mode.

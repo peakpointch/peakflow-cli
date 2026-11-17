@@ -1,17 +1,15 @@
 import { InvalidArgumentError, Option } from "commander";
 import { testLogger } from "../helpers/taskLogger.js";
 import { errorToString } from "../helpers/utils.js";
-import { analyzePages } from "../testing/analyzer.js";
-import {
-  formatFindingsTable,
-  formatScanErrorsTable,
-  hasTestFailures
-} from "../testing/report.js";
+import { runWebsiteJest } from "../testing/jest.js";
+import { formatScanErrorsTable } from "../testing/report.js";
+import { captureSnapshot } from "../testing/snapshot.js";
 import {
   normalizeTestUrl,
   resolveTestPages,
   resolveTestTarget
 } from "../testing/targets.js";
+const websiteTestingGuideUrl = "https://github.com/peakpointch/peakflow-cli/blob/main/docs/website-testing.md";
 function setProcessExitCode(exitCode) {
   process.exitCode = exitCode;
 }
@@ -63,54 +61,101 @@ function logSelection(selection, target, actionLogger) {
     `Testing ${actionLogger.num(selection.pages.length)} ${countLabel(selection.pages.length, "page", "pages")}.`
   );
 }
-function logResultTables(result, pageOrder, actionLogger) {
-  if (result.findings.length > 0) {
-    actionLogger.warn(
-      `Found ${actionLogger.num(result.findings.length)} ${countLabel(result.findings.length, "problem", "problems")}:`
-    );
-    actionLogger.continue(formatFindingsTable(result.findings, { pageOrder }));
-  }
-  if (result.errors.length > 0) {
-    actionLogger.warn(
-      `Encountered ${actionLogger.num(result.errors.length)} scan ${countLabel(result.errors.length, "error", "errors")}:`
-    );
-    actionLogger.continue(formatScanErrorsTable(result.errors, { pageOrder }));
-  }
+function logFetchErrors(errors, pageOrder, actionLogger) {
+  if (errors.length === 0) return;
+  actionLogger.warn(
+    `Encountered ${actionLogger.num(errors.length)} page fetch ${countLabel(errors.length, "error", "errors")}:`
+  );
+  actionLogger.continue(
+    formatScanErrorsTable(
+      errors.map((error) => ({
+        pageUrl: new URL(error.requestedUrl),
+        message: error.message
+      })),
+      { pageOrder }
+    )
+  );
 }
-function logCleanResult(result, actionLogger) {
+function logNoTestsFound(actionLogger) {
+  actionLogger.info(
+    `No website tests were found. Add tests to the Jest project named ${actionLogger.var("website")}. Learn more: ${websiteTestingGuideUrl}`
+  );
+}
+function logFinalResult(result, pagesCaptured, fetchErrorCount, actionLogger) {
+  const failed = result.exitCode !== 0 || fetchErrorCount > 0;
+  if (failed) {
+    actionLogger.error(
+      `Website tests finished with Jest exit code ${actionLogger.num(result.exitCode)} and ${actionLogger.num(fetchErrorCount)} page fetch ${countLabel(fetchErrorCount, "error", "errors")}.`
+    );
+    return 1;
+  }
+  if (result.noTestsFound) {
+    actionLogger.success(
+      `Captured ${actionLogger.num(pagesCaptured)} ${countLabel(pagesCaptured, "page", "pages")}; no website tests were run.`
+    );
+    return 0;
+  }
   actionLogger.success(
-    `Tested ${actionLogger.num(result.pagesChecked)} ${countLabel(result.pagesChecked, "page", "pages")} and ${actionLogger.num(result.phoneLinksChecked)} phone ${countLabel(result.phoneLinksChecked, "link", "links")} without problems.`
+    `Website tests passed using ${actionLogger.num(pagesCaptured)} captured ${countLabel(pagesCaptured, "page", "pages")}.`
   );
-}
-function logFailedResult(result, actionLogger) {
-  actionLogger.error(
-    `Tested ${actionLogger.num(result.pagesRequested)} ${countLabel(result.pagesRequested, "page", "pages")} and ${actionLogger.num(result.phoneLinksChecked)} phone ${countLabel(result.phoneLinksChecked, "link", "links")}: ${actionLogger.num(result.findings.length)} ${countLabel(result.findings.length, "finding", "findings")}, ${actionLogger.num(result.errors.length)} scan ${countLabel(result.errors.length, "error", "errors")}.`
-  );
+  return 0;
 }
 async function testAction(options, dependencies = {}) {
   const actionLogger = dependencies.logger ?? testLogger;
   const getTarget = dependencies.resolveTarget ?? resolveTestTarget;
   const getPages = dependencies.resolvePages ?? resolveTestPages;
-  const runAnalysis = dependencies.analyzeSelectedPages ?? analyzePages;
+  const captureWebsite = dependencies.captureWebsiteSnapshot ?? captureSnapshot;
+  const runJest = dependencies.runWebsiteJest ?? runWebsiteJest;
+  const projectDirectory = dependencies.projectDirectory ?? process.cwd();
   const setExitCode = dependencies.setExitCode ?? setProcessExitCode;
+  let capture;
+  let exitCode = 1;
   try {
     const target = getTarget(options);
     logSelectedMode(target, actionLogger);
     const selection = await getPages(target);
     logSelection(selection, target, actionLogger);
-    const result = await runAnalysis(selection.pages);
-    logResultTables(result, selection.pages, actionLogger);
-    if (hasTestFailures(result)) {
-      logFailedResult(result, actionLogger);
-      setExitCode(1);
-    } else {
-      logCleanResult(result, actionLogger);
-      setExitCode(0);
-    }
+    capture = await captureWebsite(
+      { target, selection },
+      {
+        projectDirectory,
+        onPageError: (error) => {
+          actionLogger.warn(
+            `Unable to fetch ${actionLogger.var(error.requestedUrl)}: ${error.message}`
+          );
+        }
+      }
+    );
+    actionLogger.info(
+      `Captured ${actionLogger.num(capture.manifest.pages.length)} of ${actionLogger.num(selection.pages.length)} ${countLabel(selection.pages.length, "page", "pages")}.`
+    );
+    const result = await runJest({
+      manifestPath: capture.manifestPath,
+      projectDirectory
+    });
+    if (result.noTestsFound) logNoTestsFound(actionLogger);
+    logFetchErrors(capture.manifest.errors, selection.pages, actionLogger);
+    exitCode = logFinalResult(
+      result,
+      capture.manifest.pages.length,
+      capture.manifest.errors.length,
+      actionLogger
+    );
   } catch (error) {
     actionLogger.error(`Unable to run tests: ${errorToString(error)}.`);
-    setExitCode(1);
+  } finally {
+    if (capture) {
+      try {
+        await capture.cleanup();
+      } catch (error) {
+        actionLogger.error(
+          `Unable to clean up website snapshot: ${errorToString(error)}.`
+        );
+        exitCode = 1;
+      }
+    }
   }
+  setExitCode(exitCode);
 }
 function addTestCommand(program, action = testAction) {
   return program.command("test").description("Test a published web page").requiredOption(

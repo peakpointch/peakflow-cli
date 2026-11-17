@@ -4,16 +4,18 @@ import { describe, expect, jest, test } from "@jest/globals";
 import {
   addTestCommand,
   testAction,
-  type AnalyzeSelectedPages,
+  type CaptureWebsiteSnapshot,
+  type RunWebsiteJest,
   type TestActionDependencies,
   type TestActionHandler,
   type TestActionLogger,
   type TestActionOptions,
 } from "../../src/commands/testAction.js";
 import type {
-  AuditRunResult,
   TestPageSelection,
   UrlTestTarget,
+  WebsiteSnapshotCapture,
+  WebsiteSnapshotFetchError,
 } from "../../src/testing/types.js";
 
 type LogMethod = "continue" | "error" | "info" | "success" | "warn";
@@ -74,26 +76,50 @@ function selection(pages: URL[]): TestPageSelection {
   return { mode: "single", pages, sitemapUrls: [] };
 }
 
-function cleanResult(pages = 1): AuditRunResult {
+function captureResult(
+  pages: URL[],
+  errors: WebsiteSnapshotFetchError[] = [],
+): WebsiteSnapshotCapture {
+  const firstPage = pages[0] ?? new URL("https://example.com/");
+
   return {
-    pagesRequested: pages,
-    pagesChecked: pages,
-    phoneLinksChecked: 1,
-    findings: [],
-    errors: [],
+    manifestPath:
+      "C:\\project\\.peakflow\\website-test-1\\website-snapshot.json",
+    manifest: {
+      version: "0.1.0",
+      createdAt: "2026-11-18T10:00:00.000Z",
+      source: {
+        targetUrl: firstPage.href,
+        origin: `${firstPage.origin}/`,
+        mode: "single",
+        sitemapUrls: [],
+        sitemapHost: "preserve",
+      },
+      pages: pages
+        .slice(0, pages.length - errors.length)
+        .map((page, index) => ({
+          requestedUrl: page.href,
+          finalUrl: page.href,
+          file: `pages/${String(index + 1).padStart(6, "0")}.html`,
+        })),
+      errors,
+    },
+    cleanup: jest.fn<() => Promise<void>>(async () => undefined),
   };
 }
 
 function dependencies(
   logger: MemoryLogger,
   selectionResult: TestPageSelection,
-  analysisResult: AuditRunResult,
+  capture: WebsiteSnapshotCapture,
 ): TestActionDependencies {
   return {
     logger,
     resolveTarget: target,
     resolvePages: async () => selectionResult,
-    analyzeSelectedPages: async () => analysisResult,
+    captureWebsiteSnapshot: async () => capture,
+    runWebsiteJest: async () => ({ exitCode: 0, noTestsFound: false }),
+    projectDirectory: "C:\\project",
   };
 }
 
@@ -182,75 +208,64 @@ describe(addTestCommand.name, () => {
 });
 
 describe(testAction.name, () => {
-  test("reports a clean single-page run and exits successfully", async () => {
+  test("captures the snapshot before running Jest and exits successfully", async () => {
     const logger = new MemoryLogger();
     const page = new URL("https://example.com/contact");
+    const capture = captureResult([page]);
+    const calls: string[] = [];
+    const captureWebsiteSnapshot = jest.fn<CaptureWebsiteSnapshot>(
+      async (input) => {
+        calls.push("capture");
+        expect(input.selection.pages).toEqual([page]);
+        return capture;
+      },
+    );
+    const runWebsiteJest = jest.fn<RunWebsiteJest>(async (options) => {
+      calls.push("jest");
+      expect(options).toEqual({
+        manifestPath: capture.manifestPath,
+        projectDirectory: "C:\\project",
+      });
+      return { exitCode: 0, noTestsFound: false };
+    });
     const setExitCode = jest.fn<(exitCode: number) => void>();
-    const deps = dependencies(logger, selection([page]), cleanResult());
 
-    await testAction({ url: page.href }, { ...deps, setExitCode });
+    await testAction(
+      { url: page.href },
+      {
+        ...dependencies(logger, selection([page]), capture),
+        captureWebsiteSnapshot,
+        runWebsiteJest,
+        setExitCode,
+      },
+    );
 
+    expect(calls).toEqual(["capture", "jest"]);
+    expect(capture.cleanup).toHaveBeenCalledTimes(1);
     expect(setExitCode).toHaveBeenCalledWith(0);
-    expect(logger.entries).toEqual(
-      expect.arrayContaining([
-        {
-          method: "success",
-          message: "Tested 1 page and 1 phone link without problems.",
-        },
-      ]),
-    );
+    expect(logger.entries.at(-1)).toEqual({
+      method: "success",
+      message: "Website tests passed using 1 captured page.",
+    });
   });
 
-  test("prints all findings and scan errors before the failed summary", async () => {
-    const logger = new MemoryLogger();
-    const page = new URL("https://example.com/contact");
-    const analysisResult: AuditRunResult = {
-      pagesRequested: 1,
-      pagesChecked: 1,
-      phoneLinksChecked: 1,
-      findings: [
-        {
-          pageUrl: page,
-          testId: "phone-links",
-          ruleId: "phone-href-not-e164",
-          message: "Telephone href must use canonical E.164 formatting.",
-          location: { line: 2, column: 3 },
-          evidence: { href: "tel:0441234567", text: "044 123 45 67" },
-        },
-      ],
-      errors: [{ pageUrl: page, message: "A later scan failed" }],
-    };
-    const setExitCode = jest.fn<(exitCode: number) => void>();
-    const deps = dependencies(logger, selection([page]), analysisResult);
-
-    await testAction({ url: page.href }, { ...deps, setExitCode });
-
-    expect(setExitCode).toHaveBeenCalledWith(1);
-    expect(logger.entries.map(({ method }) => method).slice(-5)).toEqual([
-      "warn",
-      "continue",
-      "warn",
-      "continue",
-      "error",
-    ]);
-    expect(logger.entries.at(-1)?.message).toBe(
-      "Tested 1 page and 1 phone link: 1 finding, 1 scan error.",
-    );
-  });
-
-  test("continues reporting after one of several pages fails", async () => {
+  test("warns once per failed page and combines fetch failures with Jest status", async () => {
     const logger = new MemoryLogger();
     const pages = [
       new URL("https://example.com/one"),
       new URL("https://example.com/two"),
+      new URL("https://example.com/three"),
     ];
-    const analysisResult: AuditRunResult = {
-      ...cleanResult(2),
-      pagesChecked: 1,
-      errors: [{ pageUrl: pages[1]!, message: "Request failed" }],
-    };
-    const analyzeSelectedPages = jest.fn<AnalyzeSelectedPages>(
-      async () => analysisResult,
+    const errors = [
+      { requestedUrl: pages[1]!.href, message: "Request failed" },
+      { requestedUrl: pages[2]!.href, message: "Request timed out" },
+    ];
+    const capture = captureResult(pages, errors);
+    const captureWebsiteSnapshot = jest.fn<CaptureWebsiteSnapshot>(
+      async (_input, options) => {
+        for (const error of errors) options?.onPageError?.(error);
+        return capture;
+      },
     );
     const setExitCode = jest.fn<(exitCode: number) => void>();
 
@@ -264,35 +279,95 @@ describe(testAction.name, () => {
           pages,
           sitemapUrls: [new URL("https://example.com/sitemap.xml")],
         }),
-        analyzeSelectedPages,
+        captureWebsiteSnapshot,
+        runWebsiteJest: async () => ({ exitCode: 0, noTestsFound: false }),
+        projectDirectory: "C:\\project",
         setExitCode,
       },
     );
 
-    expect(analyzeSelectedPages).toHaveBeenCalledWith(pages);
-    expect(setExitCode).toHaveBeenCalledWith(1);
+    const pageWarnings = logger.entries.filter(
+      ({ method, message }) =>
+        method === "warn" && message.startsWith("Unable to fetch"),
+    );
+    expect(pageWarnings).toHaveLength(2);
     expect(
-      logger.entries.some(({ message }) => message.includes("2 pages")),
+      logger.entries.some(
+        ({ method, message }) =>
+          method === "continue" && message.includes("Request failed"),
+      ),
     ).toBe(true);
+    expect(setExitCode).toHaveBeenCalledWith(1);
+    expect(logger.entries.at(-1)?.message).toBe(
+      "Website tests finished with Jest exit code 0 and 2 page fetch errors.",
+    );
+  });
+
+  test("returns a failing status when Jest fails", async () => {
+    const logger = new MemoryLogger();
+    const page = new URL("https://example.com/contact");
+    const capture = captureResult([page]);
+    const setExitCode = jest.fn<(exitCode: number) => void>();
+
+    await testAction(
+      { url: page.href },
+      {
+        ...dependencies(logger, selection([page]), capture),
+        runWebsiteJest: async () => ({ exitCode: 1, noTestsFound: false }),
+        setExitCode,
+      },
+    );
+
+    expect(setExitCode).toHaveBeenCalledWith(1);
+    expect(logger.entries.at(-1)?.message).toBe(
+      "Website tests finished with Jest exit code 1 and 0 page fetch errors.",
+    );
+  });
+
+  test("reports no website tests without failing solely for that reason", async () => {
+    const logger = new MemoryLogger();
+    const page = new URL("https://example.com/contact");
+    const capture = captureResult([page]);
+    const setExitCode = jest.fn<(exitCode: number) => void>();
+
+    await testAction(
+      { url: page.href },
+      {
+        ...dependencies(logger, selection([page]), capture),
+        runWebsiteJest: async () => ({ exitCode: 0, noTestsFound: true }),
+        setExitCode,
+      },
+    );
+
+    expect(setExitCode).toHaveBeenCalledWith(0);
+    expect(
+      logger.entries.some(
+        ({ message }) =>
+          message.includes("No website tests were found") &&
+          message.includes("docs/website-testing.md"),
+      ),
+    ).toBe(true);
+    expect(logger.entries.at(-1)?.message).toBe(
+      "Captured 1 page; no website tests were run.",
+    );
   });
 
   test("warns when preserved sitemap pages use another origin", async () => {
     const logger = new MemoryLogger();
     const targetPage = new URL("https://staging.example.com");
     const sitemapPage = new URL("https://www.example.com/page");
+    const capture = captureResult([sitemapPage]);
     const setExitCode = jest.fn<(exitCode: number) => void>();
 
     await testAction(
       { url: targetPage.href, sitemap: true },
       {
-        logger,
-        resolveTarget: target,
+        ...dependencies(logger, selection([sitemapPage]), capture),
         resolvePages: async () => ({
           mode: "sitemap",
           pages: [sitemapPage],
           sitemapUrls: [new URL("https://staging.example.com/sitemap.xml")],
         }),
-        analyzeSelectedPages: async () => cleanResult(),
         setExitCode,
       },
     );
@@ -308,9 +383,8 @@ describe(testAction.name, () => {
 
   test("treats sitemap discovery failures as fatal", async () => {
     const logger = new MemoryLogger();
-    const analyzeSelectedPages = jest.fn<AnalyzeSelectedPages>(async () =>
-      cleanResult(),
-    );
+    const captureWebsiteSnapshot = jest.fn<CaptureWebsiteSnapshot>();
+    const runWebsiteJest = jest.fn<RunWebsiteJest>();
     const setExitCode = jest.fn<(exitCode: number) => void>();
 
     await testAction(
@@ -321,16 +395,42 @@ describe(testAction.name, () => {
         resolvePages: async () => {
           throw new Error("Could not parse sitemap");
         },
-        analyzeSelectedPages,
+        captureWebsiteSnapshot,
+        runWebsiteJest,
         setExitCode,
       },
     );
 
-    expect(analyzeSelectedPages).not.toHaveBeenCalled();
+    expect(captureWebsiteSnapshot).not.toHaveBeenCalled();
+    expect(runWebsiteJest).not.toHaveBeenCalled();
     expect(setExitCode).toHaveBeenCalledWith(1);
     expect(logger.entries.at(-1)).toEqual({
       method: "error",
       message: "Unable to run tests: Could not parse sitemap.",
     });
+  });
+
+  test("cleans up the snapshot when Jest cannot start", async () => {
+    const logger = new MemoryLogger();
+    const page = new URL("https://example.com/contact");
+    const capture = captureResult([page]);
+    const setExitCode = jest.fn<(exitCode: number) => void>();
+
+    await testAction(
+      { url: page.href },
+      {
+        ...dependencies(logger, selection([page]), capture),
+        runWebsiteJest: async () => {
+          throw new Error("Jest is unavailable");
+        },
+        setExitCode,
+      },
+    );
+
+    expect(capture.cleanup).toHaveBeenCalledTimes(1);
+    expect(setExitCode).toHaveBeenCalledWith(1);
+    expect(logger.entries.at(-1)?.message).toBe(
+      "Unable to run tests: Jest is unavailable.",
+    );
   });
 });

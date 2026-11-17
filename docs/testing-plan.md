@@ -9,8 +9,8 @@ The future package extraction to `@peakflow/testing` is intentionally deferred.
 - Commit 0, accepted architecture documentation: complete.
 - Commit 1, snapshot capture and manifest storage: complete.
 - Commit 2, public lazy snapshot fixture: complete.
-- Commit 3, project-local website Jest bridge: next.
-- Commit 4, opt-in phone audit module: pending.
+- Commit 3, project-local website Jest bridge: complete.
+- Commit 4, opt-in phone audit module: next.
 - Template repository setup: pending follow-up.
 
 ## Commit 0 — document the accepted architecture
@@ -71,6 +71,8 @@ Commit message: `feat(test): run project-local website Jest tests`
   that reason, and include the planned documentation link.
 - Preserve Peakflow lifecycle logging and table reporting.
 - Prove that independent unit tests are not run by `peakflow test`.
+
+Implementation complete.
 
 ## Commit 4 — add the opt-in phone audit module
 

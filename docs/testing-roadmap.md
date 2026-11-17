@@ -1,6 +1,6 @@
 # Peakflow Testing Roadmap
 
-Last updated: 2026-11-17
+Last updated: 2026-11-18
 
 This is the living roadmap for Peakflow website testing. It records the
 current implementation, the agreed direction, and the work that remains.
@@ -36,11 +36,11 @@ peakflow test
 Website tests should be opt-in from the user's test code. Peakflow should
 ship reusable audit modules, but should not silently enable every audit.
 
-## Immediate next step: run the project-local website Jest project
+## Immediate next step: add the opt-in phone audit module
 
-The snapshot manifest and public fixture are implemented. The next task is to
-create the manifest before Jest starts and run only the user's website Jest
-project.
+The snapshot manifest, public fixture, and project-local Jest bridge are
+implemented. The next task is to expose the phone audit as a user-invoked
+Jest-compatible module.
 
 ## Completed
 
@@ -92,11 +92,11 @@ Completed implementation commits:
 - `cbb4b90` — URL testing command and table reporting.
 - `211f7c3` — Explicit sitemap host rewriting.
 
-## Next: migrate execution to Jest
+## Jest migration
 
-The current `AuditModule` runner is a working transitional implementation.
-It should be replaced as the primary user-facing testing model by Jest,
-without losing the existing target resolution, fetching, or reporting work.
+The primary CLI path now captures a website snapshot and runs the user's Jest
+`website` project. The internal `AuditModule` types remain temporarily for the
+phone module migration but are no longer executed by `peakflow test`.
 
 ### Website snapshot and manifest
 
@@ -106,7 +106,7 @@ without losing the existing target resolution, fetching, or reporting work.
 - [x] Define a versioned manifest format for communication with Jest.
 - [x] Use provisional manifest version `0.1.0` until the snapshot format
   stabilizes and is unlikely to change.
-- [ ] Fetch pages before Jest starts.
+- [x] Fetch pages before Jest starts.
 - [x] Store the manifest in a temporary run directory.
 - [x] Clean up temporary manifests by default.
 - [ ] Add an optional way to retain a manifest for debugging.
@@ -122,7 +122,7 @@ without losing the existing target resolution, fetching, or reporting work.
 
 - [x] Expose `getWebsiteSnapshot()` from the testing package.
 - [x] Return a snapshot with a `pages` property.
-- [ ] Keep page fixtures usable with normal Jest APIs:
+- [x] Keep page fixtures usable with normal Jest APIs:
 
   ```ts
   import { getWebsiteSnapshot } from "peakflow-cli/testing";
@@ -140,16 +140,16 @@ without losing the existing target resolution, fetching, or reporting work.
 
 ### Jest integration
 
-- [ ] Run the user's project-local Jest installation.
-- [ ] Select only the website Jest project from `peakflow test`.
-- [ ] Leave independent unit tests under the user's normal Jest command.
-- [ ] Support the user's Jest configuration and TypeScript/ESM setup.
+- [x] Run the user's project-local Jest installation.
+- [x] Select only the website Jest project from `peakflow test`.
+- [x] Leave independent unit tests under the user's normal Jest command.
+- [x] Support the user's Jest configuration and TypeScript/ESM setup.
 - [ ] Decide how additional Jest arguments are passed through the CLI.
-- [ ] Inform users when no website tests are found, without failing solely
+- [x] Inform users when no website tests are found, without failing solely
   for that reason, and include a sentence on how to add them plus a link to
   the planned testing guide.
-- [ ] Combine Jest exit status with page-fetch and manifest errors.
-- [ ] Preserve Peakflow table reporting around Jest output.
+- [x] Combine Jest exit status with page-fetch and manifest errors.
+- [x] Preserve Peakflow table reporting around Jest output.
 
 ### Opt-in audit modules
 
@@ -161,8 +161,8 @@ without losing the existing target resolution, fetching, or reporting work.
 - [ ] Allow optional module configuration as the second argument.
 - [ ] Decide whether built-in modules use generic Jest assertions,
   custom matchers, or a small Peakflow assertion helper.
-- [ ] Retire or deprecate the current internal `AuditModule` execution path
-  after Jest parity is established.
+- [x] Retire the current internal `AuditModule` execution path from
+  `peakflow test`.
 
 ## User project and template work
 
@@ -178,10 +178,10 @@ without losing the existing target resolution, fetching, or reporting work.
 
 ## Reporting and diagnostics after Jest migration
 
-- [ ] Keep page-fetch errors separate from Jest assertion failures.
+- [x] Keep page-fetch errors separate from Jest assertion failures.
 - [ ] Include page URL, test name, rule ID, and source location where
   available.
-- [ ] Preserve the existing compact table style.
+- [x] Preserve the existing compact table style.
 - [ ] Add a manifest/run identifier to verbose diagnostics.
 - [ ] Add optional request timing and status diagnostics for investigating
   unusually fast or slow runs.

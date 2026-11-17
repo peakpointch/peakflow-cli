@@ -7,7 +7,9 @@ current implementation, the agreed direction, and the work that remains.
 
 Related documentation:
 
+- [Testing implementation plan](testing-plan.md)
 - [Testing architecture](testing-architecture.md)
+- [ADR-0005: Per-page snapshot storage](decisions/0005-per-page-snapshot-storage.md)
 - [ADR-0001: Jest owns website test execution](decisions/0001-jest-owns-website-tests.md)
 - [ADR-0002: Website snapshot fixture](decisions/0002-website-snapshot-fixture.md)
 - [ADR-0003: Sitemap host policy](decisions/0003-sitemap-host-policy.md)

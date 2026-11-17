@@ -38,8 +38,10 @@ describe.each(website.pages)("$url", (page) => {
 
 The snapshot will contain generic website-level metadata and page snapshots. A
 page snapshot will include its requested URL, final URL, HTML, and parsed
-Cheerio document. Provider-specific metadata is deferred to a future plugin
-API.
+Cheerio document. Page HTML is stored in separate files and loaded lazily;
+the HTML string and Cheerio document are cached after first access. The
+serialized manifest and runtime `PageSnapshot` are separate contracts.
+Provider-specific metadata is deferred to a future plugin API.
 
 ## Jest projects
 

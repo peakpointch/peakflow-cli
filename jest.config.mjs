@@ -18,6 +18,7 @@ export default {
   // Allows TypeScript source files to use imports such as "./logger.js"
   // while Jest resolves the actual "./logger.ts" source file.
   moduleNameMapper: {
+    "^(\\.{1,2}/.*\\.json)\\.js$": "$1.js",
     "^(\\.{1,2}/.*)\\.js$": "$1",
   },
 };

@@ -20,6 +20,13 @@ function normalizeHttpUrl(value, base) {
     return void 0;
   }
 }
+function rewriteUrlOrigin(url, origin) {
+  const rewritten = new URL(origin.href);
+  rewritten.pathname = url.pathname;
+  rewritten.search = url.search;
+  rewritten.hash = "";
+  return rewritten;
+}
 function getLoc(entry) {
   if (typeof entry === "string") return entry.trim() || void 0;
   if (!entry || typeof entry !== "object") return void 0;
@@ -121,7 +128,8 @@ async function discoverSitemapPages(origin, options = {}) {
       return;
     }
     for (const location of sitemap.locations) {
-      const pageUrl = normalizeHttpUrl(location, sitemapUrl);
+      const discoveredUrl = normalizeHttpUrl(location, sitemapUrl);
+      const pageUrl = discoveredUrl ? options.pageOrigin ? rewriteUrlOrigin(discoveredUrl, options.pageOrigin) : discoveredUrl : void 0;
       if (!pageUrl || seenPages.has(pageUrl.href)) continue;
       seenPages.add(pageUrl.href);
       pages.push(pageUrl);

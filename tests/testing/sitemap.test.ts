@@ -123,6 +123,29 @@ describe(discoverSitemapPages.name, () => {
     });
   });
 
+  test("rewrites page origins and deduplicates after rewriting", async () => {
+    const fetchText = createFetchText({
+      "https://example.com/sitemap.xml": [
+        "<urlset>",
+        "<url><loc>https://www.example.com/first?preview=true</loc></url>",
+        "<url><loc>https://www.example.com/first?preview=true</loc></url>",
+        "<url><loc>https://www.example.com/second</loc></url>",
+        "</urlset>",
+      ].join(""),
+    });
+
+    const result = await discoverSitemapPages(new URL("https://example.com"), {
+      fetchText,
+      sitemapUrl: new URL("https://example.com/sitemap.xml"),
+      pageOrigin: new URL("https://staging.example.com"),
+    });
+
+    expect(result.pages.map((url) => url.href)).toEqual([
+      "https://staging.example.com/first?preview=true",
+      "https://staging.example.com/second",
+    ]);
+  });
+
   test("rejects malformed sitemap XML with the sitemap URL", async () => {
     const fetchText = createFetchText({
       "https://example.com/broken.xml": "<urlset><url></urlset>",

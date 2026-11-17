@@ -16,6 +16,7 @@ import {
 import type {
   AuditRunResult,
   SitemapOption,
+  SitemapHostMode,
   TestPageSelection,
   UrlTestTarget,
 } from "../testing/types.js";
@@ -24,6 +25,7 @@ import type { TaskLogger } from "../helpers/taskLogger.js";
 export interface TestActionOptions {
   url: string;
   sitemap?: SitemapOption;
+  sitemapHost?: SitemapHostMode;
 }
 
 export type TestActionHandler = (
@@ -74,29 +76,42 @@ function logSelectedMode(
     actionLogger.info(
       `Selected single-page mode for ${actionLogger.var(target.url.href)}.`,
     );
-    return;
-  }
-
-  if (target.sitemap === true) {
+  } else if (target.sitemap === true) {
     actionLogger.info(
       `Selected automatic sitemap mode for ${actionLogger.var(target.origin.href)}.`,
     );
-    return;
+  } else {
+    actionLogger.info(
+      `Selected explicit sitemap ${actionLogger.var(target.sitemap)}.`,
+    );
   }
 
-  actionLogger.info(
-    `Selected explicit sitemap ${actionLogger.var(target.sitemap)}.`,
-  );
+  if (target.sitemapHost === "target") {
+    actionLogger.info(
+      `Sitemap page URLs will use target origin ${actionLogger.var(target.origin.href)}.`,
+    );
+  }
 }
 
 function logSelection(
   selection: TestPageSelection,
+  target: UrlTestTarget,
   actionLogger: TestActionLogger,
 ): void {
   if (selection.mode === "sitemap") {
     actionLogger.info(
       `Discovered ${actionLogger.num(selection.pages.length)} ${countLabel(selection.pages.length, "page", "pages")} from ${actionLogger.num(selection.sitemapUrls.length)} ${countLabel(selection.sitemapUrls.length, "sitemap", "sitemaps")}.`,
     );
+
+    const pagesFromOtherOrigins = selection.pages.filter(
+      (page) => page.origin !== target.origin.origin,
+    ).length;
+
+    if (pagesFromOtherOrigins > 0 && target.sitemapHost !== "target") {
+      actionLogger.warn(
+        `Sitemap contains ${actionLogger.num(pagesFromOtherOrigins)} ${countLabel(pagesFromOtherOrigins, "page", "pages")} from another origin; preserving those URLs. Use ${actionLogger.var("--sitemap-host target")} to rewrite them.`,
+      );
+    }
   }
 
   actionLogger.info(
@@ -157,7 +172,7 @@ export async function testAction(
     logSelectedMode(target, actionLogger);
 
     const selection = await getPages(target);
-    logSelection(selection, actionLogger);
+    logSelection(selection, target, actionLogger);
 
     const result = await runAnalysis(selection.pages);
     logResultTables(result, selection.pages, actionLogger);
@@ -192,6 +207,12 @@ export function addTestCommand(
         "--sitemap [url]",
         "Test pages from an automatically discovered or explicit sitemap",
       ),
+    )
+    .addOption(
+      new Option(
+        "--sitemap-host <mode>",
+        "Preserve sitemap hosts or rewrite page URLs to the target origin",
+      ).choices(["preserve", "target"]),
     )
     .action(action);
 }

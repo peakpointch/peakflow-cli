@@ -2,6 +2,7 @@ import { discoverSitemapPages } from "./sitemap.js";
 import type {
   FetchText,
   TestPageSelection,
+  SitemapHostMode,
   TestTargetOptions,
   UrlTestTarget,
 } from "./types.js";
@@ -65,6 +66,14 @@ export function resolveTestTarget(options: TestTargetOptions): UrlTestTarget {
     target.sitemap = options.sitemap;
   }
 
+  if (options.sitemapHost !== undefined) {
+    if (options.sitemap === undefined) {
+      throw new TypeError("--sitemap-host requires --sitemap.");
+    }
+
+    target.sitemapHost = options.sitemapHost;
+  }
+
   return target;
 }
 
@@ -87,11 +96,9 @@ export async function resolveTestPages(
   const discoveryOptions = {
     ...(options.fetchText ? { fetchText: options.fetchText } : {}),
     ...(sitemapUrl ? { sitemapUrl } : {}),
+    ...(target.sitemapHost === "target" ? { pageOrigin: target.origin } : {}),
   };
-  const result = await discoverSitemapPages(
-    target.origin,
-    discoveryOptions,
-  );
+  const result = await discoverSitemapPages(target.origin, discoveryOptions);
 
   return {
     mode: "sitemap",

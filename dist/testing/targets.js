@@ -42,6 +42,12 @@ function resolveTestTarget(options) {
   if (options.sitemap !== void 0) {
     target.sitemap = options.sitemap;
   }
+  if (options.sitemapHost !== void 0) {
+    if (options.sitemap === void 0) {
+      throw new TypeError("--sitemap-host requires --sitemap.");
+    }
+    target.sitemapHost = options.sitemapHost;
+  }
   return target;
 }
 async function resolveTestPages(target, options = {}) {
@@ -55,12 +61,10 @@ async function resolveTestPages(target, options = {}) {
   const sitemapUrl = typeof target.sitemap === "string" ? resolveSitemapUrl(target.sitemap, target.origin) : void 0;
   const discoveryOptions = {
     ...options.fetchText ? { fetchText: options.fetchText } : {},
-    ...sitemapUrl ? { sitemapUrl } : {}
+    ...sitemapUrl ? { sitemapUrl } : {},
+    ...target.sitemapHost === "target" ? { pageOrigin: target.origin } : {}
   };
-  const result = await discoverSitemapPages(
-    target.origin,
-    discoveryOptions
-  );
+  const result = await discoverSitemapPages(target.origin, discoveryOptions);
   return {
     mode: "sitemap",
     pages: result.pages,

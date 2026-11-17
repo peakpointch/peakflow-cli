@@ -7,6 +7,7 @@ import type { FetchText } from "./types.js";
 export interface SitemapDiscoveryOptions {
   fetchText?: FetchText;
   sitemapUrl?: URL;
+  pageOrigin?: URL;
 }
 
 export interface SitemapDiscoveryResult {
@@ -52,6 +53,14 @@ function normalizeHttpUrl(value: string, base?: URL): URL | undefined {
   } catch {
     return undefined;
   }
+}
+
+function rewriteUrlOrigin(url: URL, origin: URL): URL {
+  const rewritten = new URL(origin.href);
+  rewritten.pathname = url.pathname;
+  rewritten.search = url.search;
+  rewritten.hash = "";
+  return rewritten;
 }
 
 function getLoc(entry: unknown): string | undefined {
@@ -195,7 +204,12 @@ export async function discoverSitemapPages(
     }
 
     for (const location of sitemap.locations) {
-      const pageUrl = normalizeHttpUrl(location, sitemapUrl);
+      const discoveredUrl = normalizeHttpUrl(location, sitemapUrl);
+      const pageUrl = discoveredUrl
+        ? options.pageOrigin
+          ? rewriteUrlOrigin(discoveredUrl, options.pageOrigin)
+          : discoveredUrl
+        : undefined;
 
       if (!pageUrl || seenPages.has(pageUrl.href)) continue;
 

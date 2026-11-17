@@ -1,10 +1,12 @@
 import type { CheerioAPI } from "cheerio/slim";
 
 export type SitemapOption = true | string;
+export type SitemapHostMode = "preserve" | "target";
 
 export interface TestTargetOptions {
   url: string | URL;
   sitemap?: SitemapOption;
+  sitemapHost?: SitemapHostMode;
 }
 
 export interface UrlTestTarget {
@@ -12,6 +14,7 @@ export interface UrlTestTarget {
   url: URL;
   origin: URL;
   sitemap?: SitemapOption;
+  sitemapHost?: SitemapHostMode;
 }
 
 export interface SinglePageSelection {

@@ -144,6 +144,36 @@ describe(addTestCommand.name, () => {
     expect(options.sitemap).toBe(expected);
   });
 
+  test("parses target sitemap host mode", async () => {
+    await expect(
+      parseOptions([
+        "test",
+        "--url",
+        "https://staging.example.com",
+        "--sitemap",
+        "--sitemap-host",
+        "target",
+      ]),
+    ).resolves.toEqual({
+      url: "https://staging.example.com/",
+      sitemap: true,
+      sitemapHost: "target",
+    });
+  });
+
+  test("parses preserve sitemap host mode", async () => {
+    await expect(
+      parseOptions([
+        "test",
+        "--url",
+        "https://example.com",
+        "--sitemap",
+        "--sitemap-host",
+        "preserve",
+      ]),
+    ).resolves.toMatchObject({ sitemap: true, sitemapHost: "preserve" });
+  });
+
   test("rejects a non-HTTP URL", async () => {
     await expect(
       parseOptions(["test", "--url", "example.com"]),
@@ -244,6 +274,36 @@ describe(testAction.name, () => {
     expect(
       logger.entries.some(({ message }) => message.includes("2 pages")),
     ).toBe(true);
+  });
+
+  test("warns when preserved sitemap pages use another origin", async () => {
+    const logger = new MemoryLogger();
+    const targetPage = new URL("https://staging.example.com");
+    const sitemapPage = new URL("https://www.example.com/page");
+    const setExitCode = jest.fn<(exitCode: number) => void>();
+
+    await testAction(
+      { url: targetPage.href, sitemap: true },
+      {
+        logger,
+        resolveTarget: target,
+        resolvePages: async () => ({
+          mode: "sitemap",
+          pages: [sitemapPage],
+          sitemapUrls: [new URL("https://staging.example.com/sitemap.xml")],
+        }),
+        analyzeSelectedPages: async () => cleanResult(),
+        setExitCode,
+      },
+    );
+
+    expect(
+      logger.entries.some(
+        ({ method, message }) =>
+          method === "warn" && message.includes("preserving those URLs"),
+      ),
+    ).toBe(true);
+    expect(setExitCode).toHaveBeenCalledWith(0);
   });
 
   test("treats sitemap discovery failures as fatal", async () => {

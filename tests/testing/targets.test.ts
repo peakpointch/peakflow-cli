@@ -105,4 +105,47 @@ describe(resolveTestPages.name, () => {
     ]);
     expect(fetchText).toHaveBeenCalledTimes(1);
   });
+
+  test("rewrites sitemap page hosts when target mode is selected", async () => {
+    const fetchText = jest.fn<FetchText>(async () =>
+      Promise.resolve(
+        "<urlset><url><loc>https://www.example.com/one</loc></url></urlset>",
+      ),
+    );
+    const target = resolveTestTarget({
+      url: "https://staging.example.com",
+      sitemap: "sitemap.xml",
+      sitemapHost: "target",
+    });
+
+    const result = await resolveTestPages(target, { fetchText });
+
+    expect(result.pages).toEqual([new URL("https://staging.example.com/one")]);
+  });
+
+  test("preserves sitemap page hosts when preserve mode is selected", async () => {
+    const fetchText = jest.fn<FetchText>(async () =>
+      Promise.resolve(
+        "<urlset><url><loc>https://www.example.com/one</loc></url></urlset>",
+      ),
+    );
+    const target = resolveTestTarget({
+      url: "https://staging.example.com",
+      sitemap: "sitemap.xml",
+      sitemapHost: "preserve",
+    });
+
+    const result = await resolveTestPages(target, { fetchText });
+
+    expect(result.pages).toEqual([new URL("https://www.example.com/one")]);
+  });
+
+  test("rejects sitemap host policy without sitemap mode", () => {
+    expect(() =>
+      resolveTestTarget({
+        url: "https://example.com",
+        sitemapHost: "target",
+      }),
+    ).toThrow("--sitemap-host requires --sitemap.");
+  });
 });

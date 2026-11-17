@@ -1,30 +1,11 @@
 import { load } from "cheerio/slim";
 import { phoneLinksModule, phoneLinksModuleId } from "./modules/phoneLinks.js";
+import { fetchPage } from "./snapshot.js";
 const defaultConcurrency = 5;
-const pageFetchTimeoutMs = 15e3;
 function errorMessage(error) {
   return error instanceof Error ? error.message : String(error);
 }
-async function fetchPage(url) {
-  const response = await fetch(url, {
-    redirect: "follow",
-    signal: AbortSignal.timeout(pageFetchTimeoutMs)
-  });
-  if (!response.ok) {
-    throw new Error(`Request failed with status ${response.status}.`);
-  }
-  const contentType = response.headers.get("content-type") ?? "";
-  if (!contentType.toLowerCase().includes("text/html")) {
-    throw new Error(
-      `Expected HTML but received ${contentType || "no content type"}.`
-    );
-  }
-  return {
-    requestedUrl: new URL(url),
-    finalUrl: new URL(response.url || url),
-    content: await response.text()
-  };
-}
+import { fetchPage as fetchPage2 } from "./snapshot.js";
 function createHtmlContext(page) {
   return {
     ...page,
@@ -128,5 +109,5 @@ async function analyzePages(pages, options = {}) {
 }
 export {
   analyzePages,
-  fetchPage
+  fetchPage2 as fetchPage
 };

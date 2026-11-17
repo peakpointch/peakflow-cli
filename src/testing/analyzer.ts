@@ -1,6 +1,7 @@
 import { load } from "cheerio/slim";
 
 import { phoneLinksModule, phoneLinksModuleId } from "./modules/phoneLinks.js";
+import { fetchPage } from "./snapshot.js";
 import type {
   AuditFinding,
   AuditModule,
@@ -36,36 +37,11 @@ interface WorkerFailure {
 type WorkerResult = WorkerSuccess | WorkerFailure;
 
 const defaultConcurrency = 5;
-const pageFetchTimeoutMs = 15_000;
-
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-export async function fetchPage(url: URL): Promise<FetchedPage> {
-  const response = await fetch(url, {
-    redirect: "follow",
-    signal: AbortSignal.timeout(pageFetchTimeoutMs),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Request failed with status ${response.status}.`);
-  }
-
-  const contentType = response.headers.get("content-type") ?? "";
-
-  if (!contentType.toLowerCase().includes("text/html")) {
-    throw new Error(
-      `Expected HTML but received ${contentType || "no content type"}.`,
-    );
-  }
-
-  return {
-    requestedUrl: new URL(url),
-    finalUrl: new URL(response.url || url),
-    content: await response.text(),
-  };
-}
+export { fetchPage } from "./snapshot.js";
 
 function createHtmlContext(page: FetchedPage): HtmlPageContext {
   return {

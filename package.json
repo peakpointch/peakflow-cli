@@ -56,6 +56,8 @@
     "esbuild-postcss": "^0.0.4",
     "express": "^5.2.1",
     "express-ws": "^5.0.2",
+    "fast-xml-parser": "^5.12.1",
+    "fast-xml-validator": "^1.4.4",
     "fs-extra": "^11.4.0",
     "giget": "^3.3.1",
     "jiti": "^2.7.0",

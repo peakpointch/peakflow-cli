@@ -1,4 +1,4 @@
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import { ensurePeakflowDirectory } from "../helpers/peakflowDirectory.js";
@@ -10,21 +10,22 @@ import type {
   WebsiteSnapshotCaptureOptions,
   WebsiteSnapshotFetchError,
   WebsiteSnapshotManifest,
-  WebsiteSnapshotPageManifest,
   WebsiteSnapshotPageErrorHandler,
+  SerializedPageSnapshot,
 } from "./types.js";
 import { websiteSnapshotManifestVersion } from "./types.js";
 
 const defaultConcurrency = 5;
 const pageFetchTimeoutMs = 15_000;
 const manifestFileName = "website-snapshot.json";
+const pageDirectoryName = "pages";
 
 /**
  * Represent a page that was fetched and converted to manifest data.
  */
 interface SnapshotPageSuccess {
   status: "success";
-  page: WebsiteSnapshotPageManifest;
+  page: SerializedPageSnapshot;
 }
 
 /**
@@ -44,7 +45,7 @@ type SnapshotPageResult = SnapshotPageSuccess | SnapshotPageFailure;
  * Group successful page manifests and fetch errors collected during capture.
  */
 interface SnapshotPageCollection {
-  pages: WebsiteSnapshotPageManifest[];
+  pages: SerializedPageSnapshot[];
   errors: WebsiteSnapshotFetchError[];
 }
 
@@ -107,13 +108,13 @@ export async function fetchPage(url: URL): Promise<FetchedPage> {
  *
  * @param items - Items to process.
  * @param concurrency - Maximum number of active workers.
- * @param worker - Asynchronous item processor.
+ * @param worker - Asynchronous item processor receiving an item and its index.
  * @returns Results in the same order as the input items.
  */
 async function runWorkerPool<TItem, TResult>(
   items: TItem[],
   concurrency: number,
-  worker: (item: TItem) => Promise<TResult>,
+  worker: (item: TItem, index: number) => Promise<TResult>,
 ): Promise<TResult[]> {
   const results = new Array<TResult>(items.length);
   let nextIndex = 0;
@@ -128,7 +129,7 @@ async function runWorkerPool<TItem, TResult>(
 
       if (item === undefined) continue;
 
-      results[index] = await worker(item);
+      results[index] = await worker(item, index);
     }
   }
 
@@ -160,13 +161,17 @@ function createSource(
  * Convert a fetched page into its manifest representation.
  *
  * @param page - Fetched page data.
+ * @param file - Relative path to the page's HTML file.
  * @returns Serializable page data for the snapshot manifest.
  */
-function createPageManifest(page: FetchedPage): WebsiteSnapshotPageManifest {
+function createPageManifest(
+  page: FetchedPage,
+  file: string,
+): SerializedPageSnapshot {
   return {
     requestedUrl: page.requestedUrl.href,
     finalUrl: page.finalUrl.href,
-    content: page.content,
+    file,
   };
 }
 
@@ -175,15 +180,26 @@ function createPageManifest(page: FetchedPage): WebsiteSnapshotPageManifest {
  *
  * @param url - Page URL to capture.
  * @param getPage - Page-fetch implementation.
+ * @param pageDirectory - Directory where the page HTML should be stored.
+ * @param pageIndex - Zero-based page index used for the HTML filename.
  * @returns A successful page manifest or an ordered fetch error.
  */
 async function capturePage(
   url: URL,
   getPage: FetchPage,
+  pageDirectory: string,
+  pageIndex: number,
 ): Promise<SnapshotPageResult> {
   try {
     const page = await getPage(url);
-    return { status: "success", page: createPageManifest(page) };
+    const fileName = `${String(pageIndex + 1).padStart(6, "0")}.html`;
+    const file = `${pageDirectoryName}/${fileName}`;
+
+    await writeFile(path.join(pageDirectory, fileName), page.content, {
+      encoding: "utf8",
+    });
+
+    return { status: "success", page: createPageManifest(page, file) };
   } catch (error) {
     return {
       status: "failure",
@@ -262,11 +278,13 @@ function notifyPageErrors(
  *
  * @param input - Target and resolved page selection for the run.
  * @param options - Fetch, concurrency, and page-error callback options.
+ * @param pageDirectory - Directory where successful page HTML is stored.
  * @returns Ordered successful pages and fetch errors.
  */
 async function collectSnapshotPages(
   input: WebsiteSnapshotCaptureInput,
   options: WebsiteSnapshotCaptureOptions,
+  pageDirectory: string,
 ): Promise<SnapshotPageCollection> {
   const concurrency = options.concurrency ?? defaultConcurrency;
   validateConcurrency(concurrency);
@@ -275,7 +293,7 @@ async function collectSnapshotPages(
   const results = await runWorkerPool(
     input.selection.pages,
     concurrency,
-    (url) => capturePage(url, getPage),
+    (url, index) => capturePage(url, getPage, pageDirectory, index),
   );
   const collection: SnapshotPageCollection = { pages: [], errors: [] };
 
@@ -323,8 +341,6 @@ export async function captureSnapshot(
   input: WebsiteSnapshotCaptureInput,
   options: WebsiteSnapshotCaptureOptions = {},
 ): Promise<WebsiteSnapshotCapture> {
-  const collection = await collectSnapshotPages(input, options);
-  const manifest = createSnapshotManifest(input, collection);
   let manifestDirectory = options.manifestDirectory;
 
   if (manifestDirectory === undefined) {
@@ -335,8 +351,17 @@ export async function captureSnapshot(
 
   const directory = await createTestRunDirectory(manifestDirectory);
   const manifestPath = path.join(directory, manifestFileName);
+  const pageDirectory = path.join(directory, pageDirectoryName);
+  let manifest: WebsiteSnapshotManifest;
 
   try {
+    await mkdir(pageDirectory, { recursive: true });
+    const collection = await collectSnapshotPages(
+      input,
+      options,
+      pageDirectory,
+    );
+    manifest = createSnapshotManifest(input, collection);
     const content = JSON.stringify(manifest, null, 2);
     await writeFile(manifestPath, content + "\n", {
       encoding: "utf8",

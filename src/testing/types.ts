@@ -4,7 +4,7 @@ export type SitemapOption = true | string;
 export type SitemapHostMode = "preserve" | "target";
 
 /** Current serialized website snapshot manifest version. */
-export const websiteSnapshotManifestVersion = 1 as const;
+export const websiteSnapshotManifestVersion = "0.1.0" as const;
 
 /** Version type accepted by the website snapshot manifest. */
 export type WebsiteSnapshotManifestVersion =
@@ -53,13 +53,13 @@ export interface WebsiteSnapshotSource {
 }
 
 /** Serializable page data stored in a website snapshot manifest. */
-export interface WebsiteSnapshotPageManifest {
+export interface SerializedPageSnapshot {
   /** URL requested from the page fetcher. */
   requestedUrl: string;
   /** Final URL after redirects. */
   finalUrl: string;
-  /** Static HTML response body. */
-  content: string;
+  /** Relative path to the page's static HTML file. */
+  file: string;
 }
 
 /** A page that could not be captured for a website snapshot. */
@@ -79,8 +79,32 @@ export interface WebsiteSnapshotManifest {
   /** Target and sitemap information for the capture. */
   source: WebsiteSnapshotSource;
   /** Successfully captured pages in resolved page order. */
-  pages: WebsiteSnapshotPageManifest[];
+  pages: SerializedPageSnapshot[];
   /** Page fetch failures in resolved page order. */
+  errors: WebsiteSnapshotFetchError[];
+}
+
+/** A fetched website page exposed to user-authored Jest tests. */
+export interface PageSnapshot {
+  /** URL requested from the page fetcher. */
+  url: URL;
+  /** Final URL after redirects. */
+  finalUrl: URL;
+  /** Static HTML response body, loaded lazily from the snapshot file. */
+  readonly html: string;
+  /** Cheerio document parsed lazily and cached after first access. */
+  readonly document: CheerioAPI;
+}
+
+/** Website snapshot fixture exposed to user-authored Jest tests. */
+export interface WebsiteSnapshot {
+  /** Time at which the snapshot capture started. */
+  createdAt: string;
+  /** Target, source mode, and sitemap metadata for the snapshot. */
+  source: WebsiteSnapshotSource;
+  /** Successfully captured pages in resolved page order. */
+  pages: PageSnapshot[];
+  /** Page fetch failures collected during capture. */
   errors: WebsiteSnapshotFetchError[];
 }
 

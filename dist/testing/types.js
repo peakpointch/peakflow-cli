@@ -1,4 +1,4 @@
-const websiteSnapshotManifestVersion = 1;
+const websiteSnapshotManifestVersion = "0.1.0";
 export {
   websiteSnapshotManifestVersion
 };

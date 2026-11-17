@@ -86,7 +86,7 @@ describe(captureSnapshot.name, () => {
       const manifestText = await readFile(capture.manifestPath, "utf8");
       const manifest = JSON.parse(manifestText) as typeof capture.manifest;
 
-      expect(manifest.version).toBe(1);
+      expect(manifest.version).toBe("0.1.0");
       expect(manifest.source).toMatchObject({
         targetUrl: "https://example.com/first",
         origin: "https://example.com/",
@@ -96,10 +96,22 @@ describe(captureSnapshot.name, () => {
       expect(manifest.pages.map((page) => page.requestedUrl)).toEqual(
         pages.map((page) => page.href),
       );
-      expect(manifest.pages.map((page) => page.content)).toEqual([
-        "<h1>/first</h1>",
-        "<h1>/second</h1>",
+      expect(manifest.pages.map((page) => page.file)).toEqual([
+        "pages/000001.html",
+        "pages/000002.html",
       ]);
+      await expect(
+        readFile(
+          path.join(path.dirname(capture.manifestPath), "pages/000001.html"),
+          "utf8",
+        ),
+      ).resolves.toBe("<h1>/first</h1>");
+      await expect(
+        readFile(
+          path.join(path.dirname(capture.manifestPath), "pages/000002.html"),
+          "utf8",
+        ),
+      ).resolves.toBe("<h1>/second</h1>");
       expect(manifest.pages.map((page) => page.finalUrl)).toEqual([
         "https://example.com/first",
         "https://www.example.com/second",

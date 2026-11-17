@@ -1,10 +1,11 @@
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { ensurePeakflowDirectory } from "../helpers/peakflowDirectory.js";
 import { websiteSnapshotManifestVersion } from "./types.js";
 const defaultConcurrency = 5;
 const pageFetchTimeoutMs = 15e3;
 const manifestFileName = "website-snapshot.json";
+const pageDirectoryName = "pages";
 function errorMessage(error) {
   return error instanceof Error ? error.message : String(error);
 }
@@ -41,7 +42,7 @@ async function runWorkerPool(items, concurrency, worker) {
       const index = nextIndex++;
       const item = items[index];
       if (item === void 0) continue;
-      results[index] = await worker(item);
+      results[index] = await worker(item, index);
     }
   }
   const workerCount = Math.min(concurrency, items.length);
@@ -57,17 +58,22 @@ function createSource(input) {
     sitemapHost: input.target.sitemapHost ?? "preserve"
   };
 }
-function createPageManifest(page) {
+function createPageManifest(page, file) {
   return {
     requestedUrl: page.requestedUrl.href,
     finalUrl: page.finalUrl.href,
-    content: page.content
+    file
   };
 }
-async function capturePage(url, getPage) {
+async function capturePage(url, getPage, pageDirectory, pageIndex) {
   try {
     const page = await getPage(url);
-    return { status: "success", page: createPageManifest(page) };
+    const fileName = `${String(pageIndex + 1).padStart(6, "0")}.html`;
+    const file = `${pageDirectoryName}/${fileName}`;
+    await writeFile(path.join(pageDirectory, fileName), page.content, {
+      encoding: "utf8"
+    });
+    return { status: "success", page: createPageManifest(page, file) };
   } catch (error) {
     return {
       status: "failure",
@@ -100,14 +106,14 @@ function notifyPageErrors(errors, onPageError) {
   if (!onPageError) return;
   for (const error of errors) onPageError(error);
 }
-async function collectSnapshotPages(input, options) {
+async function collectSnapshotPages(input, options, pageDirectory) {
   const concurrency = options.concurrency ?? defaultConcurrency;
   validateConcurrency(concurrency);
   const getPage = options.fetchPage ?? fetchPage;
   const results = await runWorkerPool(
     input.selection.pages,
     concurrency,
-    (url) => capturePage(url, getPage)
+    (url, index) => capturePage(url, getPage, pageDirectory, index)
   );
   const collection = { pages: [], errors: [] };
   for (const result of results) {
@@ -130,8 +136,6 @@ function createSnapshotManifest(input, collection) {
   };
 }
 async function captureSnapshot(input, options = {}) {
-  const collection = await collectSnapshotPages(input, options);
-  const manifest = createSnapshotManifest(input, collection);
   let manifestDirectory = options.manifestDirectory;
   if (manifestDirectory === void 0) {
     manifestDirectory = await resolveManifestDirectory(
@@ -140,9 +144,18 @@ async function captureSnapshot(input, options = {}) {
   }
   const directory = await createTestRunDirectory(manifestDirectory);
   const manifestPath = path.join(directory, manifestFileName);
+  const pageDirectory = path.join(directory, pageDirectoryName);
+  let manifest;
   try {
-    await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}
-`, {
+    await mkdir(pageDirectory, { recursive: true });
+    const collection = await collectSnapshotPages(
+      input,
+      options,
+      pageDirectory
+    );
+    manifest = createSnapshotManifest(input, collection);
+    const content = JSON.stringify(manifest, null, 2);
+    await writeFile(manifestPath, content + "\n", {
       encoding: "utf8"
     });
   } catch (error) {

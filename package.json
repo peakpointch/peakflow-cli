@@ -9,6 +9,12 @@
   "bin": {
     "peakflow": "./dist/cli.js"
   },
+  "exports": {
+    "./testing": {
+      "types": "./src/testing/index.ts",
+      "import": "./dist/testing/index.js"
+    }
+  },
   "scripts": {
     "build": "npm run --silent build:cli && npm run --silent build:extension",
     "build:dev": "npm run --silent build:cli:dev && npm run --silent build:extension:dev",

@@ -34,12 +34,11 @@ peakflow test
 Website tests should be opt-in from the user's test code. Peakflow should
 ship reusable audit modules, but should not silently enable every audit.
 
-## Immediate next step: write the implementation plan
+## Immediate next step: run the project-local website Jest project
 
-The architecture decisions are now settled. The next task is a commit-based
-implementation plan for the Jest migration covering the snapshot manifest,
-Jest bridge, public fixture API, template setup, and migration of the phone
-audit.
+The snapshot manifest and public fixture are implemented. The next task is to
+create the manifest before Jest starts and run only the user's website Jest
+project.
 
 ## Completed
 
@@ -99,22 +98,28 @@ without losing the existing target resolution, fetching, or reporting work.
 
 ### Website snapshot and manifest
 
-- [ ] Define the stable `WebsiteSnapshot` contract.
-- [ ] Define the `WebsitePageSnapshot` contract containing URL, final URL,
+- [x] Define the stable `WebsiteSnapshot` contract.
+- [x] Define the `PageSnapshot` contract containing URL, final URL,
   HTML, and parsed Cheerio document data.
-- [ ] Define a versioned manifest format for communication with Jest.
+- [x] Define a versioned manifest format for communication with Jest.
+- [x] Use provisional manifest version `0.1.0` until the snapshot format
+  stabilizes and is unlikely to change.
 - [ ] Fetch pages before Jest starts.
-- [ ] Store the manifest in a temporary run directory.
-- [ ] Clean up temporary manifests by default.
+- [x] Store the manifest in a temporary run directory.
+- [x] Clean up temporary manifests by default.
 - [ ] Add an optional way to retain a manifest for debugging.
-- [ ] Preserve fetch failures in the manifest or a companion error file.
-- [ ] Print one warning for every page that fails to fetch.
-- [ ] Make snapshot loading synchronous from test code.
+- [x] Preserve fetch failures in the manifest or a companion error file.
+- [x] Print one warning for every page that fails to fetch.
+- [x] Make snapshot loading synchronous from test code.
+- [x] Store each successful page as a separate HTML file.
+- [x] Load and parse page HTML lazily, caching both page HTML and documents.
+- [ ] Replace manual `readManifest` validation with Zod, matching the
+  `peakflow.config.ts` validation approach.
 
 ### Public testing API
 
-- [ ] Expose `getWebsiteSnapshot()` from the testing package.
-- [ ] Return a snapshot with a `pages` property.
+- [x] Expose `getWebsiteSnapshot()` from the testing package.
+- [x] Return a snapshot with a `pages` property.
 - [ ] Keep page fixtures usable with normal Jest APIs:
 
   ```ts
@@ -127,8 +132,8 @@ without losing the existing target resolution, fetching, or reporting work.
   });
   ```
 
-- [ ] Fail clearly when website tests run without a Peakflow manifest.
-- [ ] Keep the page API close to Cheerio instead of hiding DOM capabilities
+- [x] Fail clearly when website tests run without a Peakflow manifest.
+- [x] Keep the page API close to Cheerio instead of hiding DOM capabilities
   behind phone- or link-specific abstractions.
 
 ### Jest integration

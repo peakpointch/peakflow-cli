@@ -1,5 +1,10 @@
 # Jest Website Testing Implementation Plan
 
+> Historical implementation plan for the snapshot and project-local Jest
+> migration. The current milestone roadmap is in
+> [testing-roadmap.md](testing-roadmap.md); audit reporting is planned in
+> [audit-reporting-plan.md](audit-reporting-plan.md).
+
 This is the implementation plan for migrating website testing to
 project-local Jest. The first implementation remains inside `peakflow-cli`.
 The future package extraction to `@peakflow/testing` is intentionally deferred.

@@ -2,284 +2,120 @@
 
 Last updated: 2026-11-18
 
-This is the living roadmap for Peakflow website testing. It records the
-current implementation, the agreed direction, and the work that remains.
+This is the meta roadmap for Peakflow website testing. It records milestones,
+dependencies, current status, and the intended order of work. Detailed behavior
+belongs in the linked plans; architectural choices belong in ADRs.
 
-Related documentation:
+## Documentation map
 
-- [Testing implementation plan](testing-plan.md)
+- [Historical testing implementation plan](testing-plan.md)
 - [Audit reporting and test separation plan](audit-reporting-plan.md)
 - [Link audit plan](link-audit-plan.md)
 - [Future testing and monitoring ideas](future-testing-and-monitoring-ideas.md)
 - [Testing architecture](testing-architecture.md)
-- [ADR-0005: Per-page snapshot storage](decisions/0005-per-page-snapshot-storage.md)
-- [ADR-0001: Jest owns website test execution](decisions/0001-jest-owns-website-tests.md)
-- [ADR-0002: Website snapshot fixture](decisions/0002-website-snapshot-fixture.md)
-- [ADR-0003: Sitemap host policy](decisions/0003-sitemap-host-policy.md)
-- [ADR-0004: Testing package and module conventions](decisions/0004-testing-package-and-module-conventions.md)
+- [Decision records](decisions/)
 
-## Product direction
+## Current state
 
-Peakflow should prepare a website snapshot and provide two distinct result
-paths: user-authored Jest tests and first-class website audits. Peakflow owns
-target resolution, fetching, snapshot creation, audit execution, audit
-reporting, and final status. Jest owns user test discovery, assertions, test
-execution, filtering, and native Jest reporting when explicitly requested.
+Peakflow can currently:
 
-The intended user-facing flow is:
+- Resolve direct URL and sitemap targets.
+- Fetch static HTML with bounded concurrency.
+- Store a temporary, versioned website snapshot with per-page HTML files.
+- Expose lazy `getWebsiteSnapshot()` fixtures to project-local Jest tests.
+- Run only the user project's Jest `website` project.
+- Preserve page-fetch failures and Jest results in the final CLI status.
+- Provide an opt-in Swiss phone-link audit through the compatibility Jest API.
 
-```text
-peakflow test
-  -> resolve target pages
-  -> fetch static HTML
-  -> create a temporary website snapshot
-  -> run built-in static audits
-  -> run the user's Jest website project
-  -> report audit findings and Jest results separately
-```
+The audit-focused reporting architecture is not implemented yet. The current
+link-audit implementation is a temporary, uncommitted prototype and is not a
+completed roadmap milestone.
 
-Website tests should be opt-in from the user's test code. Peakflow should
-ship reusable audit modules, but should not silently enable every audit.
+## Milestones
 
-## Immediate next step: define audit reporting
+### 1. Snapshot foundation — complete
 
-The snapshot manifest, public fixture, project-local Jest bridge, and opt-in
-phone audit module are implemented. The next task is to define the structured
-audit result model, severity threshold, audit-focused reporter, and Jest
-compatibility mode before expanding the project template.
+Deliver the generic static website snapshot contract and lifecycle.
 
-## Completed
+- Target and sitemap resolution, including host policy.
+- Bounded page fetching with per-page errors.
+- Versioned manifests with separate per-page HTML files.
+- Lazy runtime page fixtures.
 
-### Target resolution and sitemap handling
+Completed in commits including `362b536`, `d8bf349`, and `4463c24`.
 
-- [x] Validate absolute HTTP(S) `--url` values.
-- [x] Preserve URL paths and queries while removing fragments.
-- [x] Test only the exact URL when `--sitemap` is absent.
-- [x] Support bare `--sitemap` automatic discovery.
-- [x] Support relative and absolute sitemap URLs.
-- [x] Discover sitemaps from `robots.txt` with `/sitemap.xml` fallback.
-- [x] Recursively process sitemap indexes with cycle protection.
-- [x] Validate, order, and deduplicate sitemap page URLs.
-- [x] Add explicit sitemap host policy:
-  - [x] Preserve sitemap hosts by default.
-  - [x] Warn when sitemap page origins differ from the target origin.
-  - [x] Rewrite page URLs to the target origin with
-    `--sitemap-host target`.
-  - [x] Deduplicate after rewriting.
-- [x] Keep nested sitemap documents on their declared fetch URLs.
+### 2. Project-local Jest bridge — complete
 
-### Current static audit implementation
+Run the user's `website` Jest project against the captured snapshot.
 
-- [x] Fetch HTML without executing page JavaScript.
-- [x] Analyze pages with bounded concurrency.
-- [x] Continue after individual page or module failures.
-- [x] Validate Swiss telephone links.
-- [x] Detect invalid, foreign, extension-bearing, or malformed telephone
-  hrefs.
-- [x] Detect non-canonical Swiss E.164 hrefs.
-- [x] Compare telephone hrefs with recognizable displayed phone numbers.
-- [x] Preserve source locations and evidence for findings.
+- Resolve the project's local Jest installation.
+- Pass the manifest through `PEAKFLOW_WEBSITE_SNAPSHOT`.
+- Select only the `website` project.
+- Preserve Jest output and combine Jest/fetch status.
+- Support the CLI `--verbose` reporter option.
 
-### CLI and reporting
+Completed in commits `32f3ab1` and `c6dab30`, with the verbose option in
+`4b52089`.
 
-- [x] Add `peakflow test --url <url>`.
-- [x] Add `peakflow test --url <url> --sitemap [url]`.
-- [x] Use the existing `TaskLogger` and `Table` components.
-- [x] Report findings and scan errors in separate tables.
-- [x] Collect all findings before setting the final exit status.
-- [x] Set exit code `1` for findings, scan errors, or fatal discovery errors.
-- [x] Add deterministic sorting and formatter tests.
-- [x] Build and track the generated CLI output in `dist`.
+### 3. Audit reporting and test separation — current
 
-Completed implementation commits:
+Replace binary Jest failures for built-in audits with structured audit results
+while keeping user-authored Jest tests independent.
 
-- `f04b585` — URL and sitemap target resolution.
-- `37a4f4a` — Modular static Swiss phone-link audit.
-- `cbb4b90` — URL testing command and table reporting.
-- `211f7c3` — Explicit sitemap host rewriting.
+The implementation order is defined in
+[audit-reporting-plan.md](audit-reporting-plan.md):
 
-## Jest migration
+1. Define the audit result model.
+2. Add audit collection, thresholds, exit codes, and the audit reporter.
+3. Migrate the phone audit to the new audit API.
+4. Migrate the link audit to the same API.
+5. Implement the complete link matrix, including cross-page lookup.
+6. Keep temporary `test*` wrappers and add `--jest` compatibility output.
 
-The current CLI path captures a website snapshot and runs the user's Jest
-`website` project. Built-in audits currently use the compatibility Jest
-registration path, but the intended direction is to report them as structured
-audits independently of normal user tests. The transitional `AuditModule` path
-has been removed.
+### 4. Template and project workflow — next
 
-### Website snapshot and manifest
+Update the project template after the audit/test contracts stabilize.
 
-- [x] Define the stable `WebsiteSnapshot` contract.
-- [x] Define the `PageSnapshot` contract containing URL, final URL,
-  HTML, and parsed Cheerio document data.
-- [x] Define a versioned manifest format for communication with Jest.
-- [x] Use provisional manifest version `0.1.0` until the snapshot format
-  stabilizes and is unlikely to change.
-- [x] Fetch pages before Jest starts.
-- [x] Store the manifest in a temporary run directory.
-- [x] Clean up temporary manifests by default.
-- [ ] Add an optional way to retain a manifest for debugging.
-- [x] Preserve fetch failures in the manifest or a companion error file.
-- [x] Print one warning for every page that fails to fetch.
-- [x] Make snapshot loading synchronous from test code.
-- [x] Store each successful page as a separate HTML file.
-- [x] Load and parse page HTML lazily, caching both page HTML and documents.
-- [ ] Replace manual `readManifest` validation with Zod, matching the
-  `peakflow.config.ts` validation approach.
+- Recommend `tests/unit` and `tests/website` layouts.
+- Add a multi-project Jest configuration.
+- Add unit, website, and audit scripts.
+- Document how users invoke audits and tests.
+- Add a complete template acceptance test.
 
-### Public testing API
+### 5. Browser execution — future
 
-- [x] Expose `getWebsiteSnapshot()` from the testing package.
-- [x] Return a snapshot with a `pages` property.
-- [x] Keep page fixtures usable with normal Jest APIs:
+Add an optional browser runner for checks that require evaluated JavaScript or
+rendered layout. This is not part of the static audit milestone.
 
-  ```ts
-  import { getWebsiteSnapshot } from "peakflow-cli/testing";
+See [future-testing-and-monitoring-ideas.md](future-testing-and-monitoring-ideas.md)
+for browser console diagnostics, development-server auditing, and mobile
+overflow ideas.
 
-  const website = getWebsiteSnapshot();
+### 6. Scenario testing and monitoring — future
 
-  describe.each(website.pages)("$url", (page) => {
-    // Normal Jest tests using page.html or page.document.
-  });
-  ```
+Explore workflows outside the core static-audit CLI, including form submission
+scenarios, prepared seed data, AI assistance, and real-user client-side
+monitoring.
 
-- [x] Fail clearly when website tests run without a Peakflow manifest.
-- [x] Keep the page API close to Cheerio instead of hiding DOM capabilities
-  behind phone- or link-specific abstractions.
-
-### Jest integration
-
-- [x] Run the user's project-local Jest installation.
-- [x] Select only the website Jest project from `peakflow test`.
-- [x] Leave independent unit tests under the user's normal Jest command.
-- [x] Support the user's Jest configuration and TypeScript/ESM setup.
-- [ ] Decide how additional Jest arguments are passed through the CLI.
-- [x] Inform users when no website tests are found, without failing solely
-  for that reason, and include a sentence on how to add them plus a link to
-  the planned testing guide.
-- [x] Combine Jest exit status with page-fetch and manifest errors.
-- [x] Preserve Peakflow table reporting around Jest output.
-
-### Opt-in audit modules
-
-- [x] Move the phone audit into a reusable user-importable module.
-- [x] Require users to explicitly call or enable imported audit modules.
-- [x] Preserve stable rule IDs and structured evidence.
-- [x] Map module failures to normal Jest test failures where useful.
-- [x] Use `test*` or `audit*` prefixes for built-in module names.
-- [x] Allow optional module configuration as the second argument.
-- [ ] Define structured audit findings with severity and status.
-- [ ] Define default rule severities and configurable failure thresholds.
-- [ ] Separate built-in audit results from user-authored Jest results.
-- [ ] Add the default audit-focused reporter.
-- [ ] Add `--jest` compatibility output for native Jest reporting.
-- [ ] Decide whether `audit*` APIs replace `test*` APIs immediately or through
-  a compatibility period.
-- [x] Remove the transitional internal `AuditModule` execution path.
-
-## User project and template work
-
-- [ ] Add a recommended `tests/unit` and `tests/website` layout to the
-  project template.
-- [ ] Add a multi-project Jest configuration example.
-- [ ] Add package scripts for unit tests and website tests.
-- [ ] Document that `peakflow test` runs the website project only.
-- [ ] Document how users import and enable built-in audits.
-- [ ] Document direct Jest behavior when no website snapshot exists.
-- [ ] Add the planned website testing guide linked by the no-tests message.
-- [ ] Add a template acceptance test for the complete CI workflow.
-
-## Reporting and diagnostics after Jest migration
-
-- [x] Keep page-fetch errors separate from Jest assertion failures.
-- [ ] Keep technical run failures separate from audit severities.
-- [ ] Report `error`, `warning`, and `notice` findings independently.
-- [ ] Report `fail`, `review`, `pass`, and `not-applicable` statuses.
-- [ ] Define distinct exit codes for technical failures and threshold failures.
-- [ ] Include page URL, test name, rule ID, and source location where
-  available.
-- [x] Preserve the existing compact table style.
-- [ ] Add an audit-focused summary grouped by severity, audit, page, and rule.
-- [ ] Add configurable `--fail-on` threshold behavior.
-- [ ] Decide whether to persist a machine-readable audit result artifact.
-- [ ] Keep native Jest output behind an explicit `--jest` option.
-- [ ] Add a manifest/run identifier to verbose diagnostics.
-- [ ] Add optional request timing and status diagnostics for investigating
-  unusually fast or slow runs.
-- [ ] Never print full HTML snapshots in normal output.
-
-## Website metadata
-
-The snapshot may eventually expose optional website-level metadata, but the
-generic contract must not depend on Webflow-specific HTML comments.
-
-- [ ] Add stable metadata such as origin, source mode, sitemap URLs,
-  environment, and fetch timestamp.
-- [ ] Define optional provider metadata for Webflow site ID, name, and
-  publication information.
-- [ ] Keep provider metadata generic and optional.
-- [ ] Define a future plugin API for provider-specific metadata.
-
-## Future target modes
-
-The snapshot source should be abstracted so future environments do not
-change the Jest fixture API.
-
-- [ ] Add production mode using a configured production domain.
-- [ ] Add staging mode using the configured Webflow staging domain.
-- [ ] Add development mode using the local proxy/dev server.
-- [ ] Support the agreed URL/environment matrix:
-
-  | Invocation | Upstream | Fetch mode |
-  | --- | --- | --- |
-  | `--url U` | `U` | Direct HTTP |
-  | `--url U --production` | `U` | Direct HTTP |
-  | `--production` | Configured production URL | Direct HTTP |
-  | `--staging` | Configured staging URL | Direct HTTP |
-  | `--development` | Staging URL | Local proxy |
-  | `--url U --development` | `U` | Local proxy |
-
-- [ ] Enforce mutually exclusive environment flags.
-- [ ] Add configuration for the production domain.
-
-## Future audit modules
-
-- [ ] Broken links.
-- [ ] Broken scroll links.
-- [ ] Additional HTML and accessibility audits.
-- [ ] Optional browser-rendered mode for JavaScript-created DOM.
-- [ ] Custom user-installed audit modules beyond the built-in package.
-
-The broader browser, development-server, form-testing, and real-user
-monitoring ideas are tracked separately in
-`future-testing-and-monitoring-ideas.md` and are not commitments for this CLI
-milestone.
-
-## Operational and security requirements
-
-- [ ] Add response-size limits.
-- [ ] Define redirect and content-type behavior in the snapshot contract.
-- [ ] Decide how authenticated staging pages are fetched.
-- [ ] Define safe handling of private or unexpected sitemap hosts.
-- [ ] Review SSRF protections for arbitrary URLs and sitemap entries.
-- [ ] Ensure temporary snapshots are cleaned up on success, failure, and
-  interruption.
-- [ ] Avoid persisting sensitive HTML unless explicitly requested.
-- [ ] Document that static mode does not execute JavaScript.
-
-## Deferred decisions
-
-- [ ] Decide whether to extract the testing API into `@peakflow/testing`
-  after it stabilizes.
-- [ ] Decide whether a future `peakflow test --all` or `peakflow ci` command
-  is useful for combining unit and website test projects.
+These ideas require separate decisions about side effects, credentials,
+hosting, privacy, alerting, and ownership.
 
 ## Current non-goals
 
-- Executing JavaScript in the current static HTML mode.
-- Browser-based verification and mobile layout measurement.
+- Executing JavaScript in static snapshot mode.
+- Browser-based verification or mobile layout measurement.
 - Development-server watch auditing.
-- Form submission workflows, external side effects, and AI-assisted seed data.
-- Real-user client-side monitoring and email notifications.
-- Automatically enabling every built-in audit module.
-- Automatically rewriting sitemap hosts without an explicit policy.
+- Form submission workflows or external Make.com side effects.
+- AI-assisted test data generation.
+- Real-user monitoring and email notifications.
+- Automatically enabling every built-in audit.
 - Running unrelated user unit tests from `peakflow test` by default.
+
+## Planning rules
+
+- Keep this file milestone-level and dependency-oriented.
+- Put exact audit behavior in an audit-specific plan.
+- Put implementation details for the active milestone in its plan.
+- Record accepted architectural choices in ADRs.
+- Keep exploratory ideas out of the active milestone until their execution
+  environment and ownership are clear.

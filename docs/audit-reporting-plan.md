@@ -30,6 +30,17 @@ Do not add browser execution, dev-server watch mode, form workflows, AI test
 data, or real-user monitoring in this milestone. Those ideas are tracked in
 `future-testing-and-monitoring-ideas.md`.
 
+## Canonical implementation order
+
+1. Define the audit result model: severity, status, rule metadata, and
+   structured findings.
+2. Add audit collection, thresholds, exit codes, and the audit-focused
+   reporter.
+3. Migrate the phone audit to the new audit API.
+4. Migrate the link audit to the same API.
+5. Implement the complete link matrix, including cross-page target lookup.
+6. Keep temporary `test*` wrappers for compatibility and add `--jest` output.
+
 ## Result model
 
 ### Severity

@@ -36,11 +36,10 @@ peakflow test
 Website tests should be opt-in from the user's test code. Peakflow should
 ship reusable audit modules, but should not silently enable every audit.
 
-## Immediate next step: add the opt-in phone audit module
+## Immediate next step: update the project template
 
-The snapshot manifest, public fixture, and project-local Jest bridge are
-implemented. The next task is to expose the phone audit as a user-invoked
-Jest-compatible module.
+The snapshot manifest, public fixture, project-local Jest bridge, and opt-in
+phone audit module are implemented. The next task is template repository setup.
 
 ## Completed
 
@@ -95,8 +94,8 @@ Completed implementation commits:
 ## Jest migration
 
 The primary CLI path now captures a website snapshot and runs the user's Jest
-`website` project. The internal `AuditModule` types remain temporarily for the
-phone module migration but are no longer executed by `peakflow test`.
+`website` project. Built-in audits register ordinary Jest tests directly from
+the website snapshot; the transitional `AuditModule` path has been removed.
 
 ### Website snapshot and manifest
 
@@ -153,16 +152,15 @@ phone module migration but are no longer executed by `peakflow test`.
 
 ### Opt-in audit modules
 
-- [ ] Move the phone audit into a reusable user-importable module.
-- [ ] Require users to explicitly call or enable imported audit modules.
-- [ ] Preserve stable rule IDs and structured evidence.
-- [ ] Map module failures to normal Jest test failures where useful.
-- [ ] Use `test*` or `audit*` prefixes for built-in module names.
-- [ ] Allow optional module configuration as the second argument.
+- [x] Move the phone audit into a reusable user-importable module.
+- [x] Require users to explicitly call or enable imported audit modules.
+- [x] Preserve stable rule IDs and structured evidence.
+- [x] Map module failures to normal Jest test failures where useful.
+- [x] Use `test*` or `audit*` prefixes for built-in module names.
+- [x] Allow optional module configuration as the second argument.
 - [ ] Decide whether built-in modules use generic Jest assertions,
   custom matchers, or a small Peakflow assertion helper.
-- [x] Retire the current internal `AuditModule` execution path from
-  `peakflow test`.
+- [x] Remove the transitional internal `AuditModule` execution path.
 
 ## User project and template work
 

@@ -61,8 +61,8 @@ command can run unit tests independently.
 The CLI fetches static HTML into a temporary website snapshot, then launches
 the user's project-local Jest installation with only the `website` project
 selected. Page-fetch failures and Jest failures are combined into the final
-exit status. The internal `AuditModule` runner remains temporarily for the
-phone audit migration but is no longer used by `peakflow test`.
+exit status. Built-in audits register ordinary Jest tests directly from the
+website snapshot.
 
 JavaScript is not executed in the current static mode. Browser-rendered tests
 are a future source mode.
@@ -85,6 +85,10 @@ are a future source mode.
   `testPhoneLinks` or `auditPhoneLinks`.
 - Allow built-in modules to accept an optional configuration object as their
   second argument.
+- Keep built-in audits opt-in: importing a module does not register tests until
+  the user calls it with a website snapshot.
+- Provide both page-level and website-level registration functions for each
+  built-in audit.
 - Keep website metadata generic. Webflow-specific metadata belongs in a
   future plugin API rather than the core snapshot contract.
 

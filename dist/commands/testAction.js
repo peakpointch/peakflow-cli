@@ -2,7 +2,7 @@ import { InvalidArgumentError, Option } from "commander";
 import { testLogger } from "../helpers/taskLogger.js";
 import { errorToString } from "../helpers/utils.js";
 import { runWebsiteJest } from "../testing/jest.js";
-import { formatScanErrorsTable } from "../testing/report.js";
+import { formatFetchErrorsTable } from "../testing/report.js";
 import { captureSnapshot } from "../testing/snapshot.js";
 import {
   normalizeTestUrl,
@@ -67,7 +67,7 @@ function logFetchErrors(errors, pageOrder, actionLogger) {
     `Encountered ${actionLogger.num(errors.length)} page fetch ${countLabel(errors.length, "error", "errors")}:`
   );
   actionLogger.continue(
-    formatScanErrorsTable(
+    formatFetchErrorsTable(
       errors.map((error) => ({
         pageUrl: new URL(error.requestedUrl),
         message: error.message

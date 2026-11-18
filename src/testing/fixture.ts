@@ -229,7 +229,14 @@ class PageSnapshot implements PageSnapshotContract {
   }
 
   get document(): CheerioAPI {
-    if (this.#document === undefined) this.#document = load(this.html);
+    if (this.#document === undefined) {
+      this.#document = load(this.html, {
+        xml: {
+          xmlMode: false,
+          withStartIndices: true,
+        },
+      });
+    }
 
     return this.#document;
   }

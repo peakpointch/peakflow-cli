@@ -99,7 +99,14 @@ class PageSnapshot {
     return this.#html;
   }
   get document() {
-    if (this.#document === void 0) this.#document = load(this.html);
+    if (this.#document === void 0) {
+      this.#document = load(this.html, {
+        xml: {
+          xmlMode: false,
+          withStartIndices: true
+        }
+      });
+    }
     return this.#document;
   }
 }

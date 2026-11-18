@@ -10,8 +10,8 @@ The future package extraction to `@peakflow/testing` is intentionally deferred.
 - Commit 1, snapshot capture and manifest storage: complete.
 - Commit 2, public lazy snapshot fixture: complete.
 - Commit 3, project-local website Jest bridge: complete.
-- Commit 4, opt-in phone audit module: next.
-- Template repository setup: pending follow-up.
+- Commit 4, opt-in phone audit module: complete.
+- Template repository setup: next.
 
 ## Commit 0 — document the accepted architecture
 
@@ -89,10 +89,15 @@ const website = getWebsiteSnapshot();
 testPhoneLinks(website, options);
 ```
 
+The audit also exposes a page-level registration function,
+`testPhoneLinksPage(page, options)`, for tests that target one page directly.
+
 Preserve the existing Swiss phone behavior and rule IDs. Require users to
 explicitly enable the module, allow optional configuration, preserve useful
 failure context, and prove ordinary user-authored Jest tests can run beside
 the audit.
+
+Implementation complete.
 
 ## Template repository follow-up
 

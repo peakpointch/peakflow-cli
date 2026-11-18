@@ -11,6 +11,9 @@ importers:
 
   .:
     dependencies:
+      '@jest/globals':
+        specifier: ^30.4.1
+        version: 30.4.1(supports-color@8.1.1)
       axios:
         specifier: ^1.19.0
         version: 1.19.0(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)
@@ -96,9 +99,6 @@ importers:
         specifier: ^3.25.76
         version: 3.25.76
     devDependencies:
-      '@jest/globals':
-        specifier: ^30.4.1
-        version: 30.4.1(supports-color@8.1.1)
       '@tailwindcss/postcss':
         specifier: ^4.3.3
         version: 4.3.3

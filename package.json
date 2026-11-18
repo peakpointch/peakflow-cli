@@ -13,6 +13,10 @@
     "./testing": {
       "types": "./src/testing/index.ts",
       "import": "./dist/testing/index.js"
+    },
+    "./testing/audits": {
+      "types": "./src/testing/audits/index.ts",
+      "import": "./dist/testing/audits/index.js"
     }
   },
   "scripts": {
@@ -27,7 +31,6 @@
     "test:watch": "node --disable-warning=ExperimentalWarning --experimental-vm-modules ./node_modules/jest/bin/jest.js --watch"
   },
   "devDependencies": {
-    "@jest/globals": "^30.4.1",
     "@tailwindcss/postcss": "^4.3.3",
     "@types/chrome": "^0.1.43",
     "@types/cookie-parser": "^1.4.10",
@@ -50,6 +53,7 @@
     "vue-tsc": "^3.3.9"
   },
   "dependencies": {
+    "@jest/globals": "^30.4.1",
     "axios": "^1.19.0",
     "better-auth": "^1.6.26",
     "chalk": "^5.6.2",

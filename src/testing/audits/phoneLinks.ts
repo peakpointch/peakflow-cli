@@ -1,10 +1,13 @@
 import { test as jestTest } from "@jest/globals";
-import {
-  findPhoneNumbersInText,
-  parsePhoneNumberFromString,
-} from "libphonenumber-js/max";
+import { createRequire } from "node:module";
 
 import type { PageSnapshot, WebsiteSnapshot } from "../types.js";
+
+const require = createRequire(import.meta.url);
+const {
+  findPhoneNumbersInText,
+  parsePhoneNumberFromString,
+}: typeof import("libphonenumber-js/max") = require("libphonenumber-js/max");
 
 export type PhoneLinkRuleId =
   "phone-href-invalid" | "phone-href-not-e164" | "phone-text-mismatch";

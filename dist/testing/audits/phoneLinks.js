@@ -1,8 +1,10 @@
 import { test as jestTest } from "@jest/globals";
-import {
+import { createRequire } from "node:module";
+const require2 = createRequire(import.meta.url);
+const {
   findPhoneNumbersInText,
   parsePhoneNumberFromString
-} from "libphonenumber-js/max";
+} = require2("libphonenumber-js/max");
 function decodeTelPayload(payload) {
   try {
     return decodeURIComponent(payload);

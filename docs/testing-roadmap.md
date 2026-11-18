@@ -8,6 +8,9 @@ current implementation, the agreed direction, and the work that remains.
 Related documentation:
 
 - [Testing implementation plan](testing-plan.md)
+- [Audit reporting and test separation plan](audit-reporting-plan.md)
+- [Link audit plan](link-audit-plan.md)
+- [Future testing and monitoring ideas](future-testing-and-monitoring-ideas.md)
 - [Testing architecture](testing-architecture.md)
 - [ADR-0005: Per-page snapshot storage](decisions/0005-per-page-snapshot-storage.md)
 - [ADR-0001: Jest owns website test execution](decisions/0001-jest-owns-website-tests.md)
@@ -17,10 +20,11 @@ Related documentation:
 
 ## Product direction
 
-Peakflow should prepare a website snapshot and let the user's Jest project
-run the actual website tests. Peakflow owns target resolution, fetching,
-snapshot creation, and reporting. Jest owns test discovery, assertions,
-test execution, filtering, and CI behavior.
+Peakflow should prepare a website snapshot and provide two distinct result
+paths: user-authored Jest tests and first-class website audits. Peakflow owns
+target resolution, fetching, snapshot creation, audit execution, audit
+reporting, and final status. Jest owns user test discovery, assertions, test
+execution, filtering, and native Jest reporting when explicitly requested.
 
 The intended user-facing flow is:
 
@@ -29,17 +33,20 @@ peakflow test
   -> resolve target pages
   -> fetch static HTML
   -> create a temporary website snapshot
+  -> run built-in static audits
   -> run the user's Jest website project
-  -> combine fetch and Jest failures in Peakflow reporting
+  -> report audit findings and Jest results separately
 ```
 
 Website tests should be opt-in from the user's test code. Peakflow should
 ship reusable audit modules, but should not silently enable every audit.
 
-## Immediate next step: update the project template
+## Immediate next step: define audit reporting
 
 The snapshot manifest, public fixture, project-local Jest bridge, and opt-in
-phone audit module are implemented. The next task is template repository setup.
+phone audit module are implemented. The next task is to define the structured
+audit result model, severity threshold, audit-focused reporter, and Jest
+compatibility mode before expanding the project template.
 
 ## Completed
 
@@ -93,9 +100,11 @@ Completed implementation commits:
 
 ## Jest migration
 
-The primary CLI path now captures a website snapshot and runs the user's Jest
-`website` project. Built-in audits register ordinary Jest tests directly from
-the website snapshot; the transitional `AuditModule` path has been removed.
+The current CLI path captures a website snapshot and runs the user's Jest
+`website` project. Built-in audits currently use the compatibility Jest
+registration path, but the intended direction is to report them as structured
+audits independently of normal user tests. The transitional `AuditModule` path
+has been removed.
 
 ### Website snapshot and manifest
 
@@ -158,8 +167,13 @@ the website snapshot; the transitional `AuditModule` path has been removed.
 - [x] Map module failures to normal Jest test failures where useful.
 - [x] Use `test*` or `audit*` prefixes for built-in module names.
 - [x] Allow optional module configuration as the second argument.
-- [ ] Decide whether built-in modules use generic Jest assertions,
-  custom matchers, or a small Peakflow assertion helper.
+- [ ] Define structured audit findings with severity and status.
+- [ ] Define default rule severities and configurable failure thresholds.
+- [ ] Separate built-in audit results from user-authored Jest results.
+- [ ] Add the default audit-focused reporter.
+- [ ] Add `--jest` compatibility output for native Jest reporting.
+- [ ] Decide whether `audit*` APIs replace `test*` APIs immediately or through
+  a compatibility period.
 - [x] Remove the transitional internal `AuditModule` execution path.
 
 ## User project and template work
@@ -177,9 +191,17 @@ the website snapshot; the transitional `AuditModule` path has been removed.
 ## Reporting and diagnostics after Jest migration
 
 - [x] Keep page-fetch errors separate from Jest assertion failures.
+- [ ] Keep technical run failures separate from audit severities.
+- [ ] Report `error`, `warning`, and `notice` findings independently.
+- [ ] Report `fail`, `review`, `pass`, and `not-applicable` statuses.
+- [ ] Define distinct exit codes for technical failures and threshold failures.
 - [ ] Include page URL, test name, rule ID, and source location where
   available.
 - [x] Preserve the existing compact table style.
+- [ ] Add an audit-focused summary grouped by severity, audit, page, and rule.
+- [ ] Add configurable `--fail-on` threshold behavior.
+- [ ] Decide whether to persist a machine-readable audit result artifact.
+- [ ] Keep native Jest output behind an explicit `--jest` option.
 - [ ] Add a manifest/run identifier to verbose diagnostics.
 - [ ] Add optional request timing and status diagnostics for investigating
   unusually fast or slow runs.
@@ -227,6 +249,11 @@ change the Jest fixture API.
 - [ ] Optional browser-rendered mode for JavaScript-created DOM.
 - [ ] Custom user-installed audit modules beyond the built-in package.
 
+The broader browser, development-server, form-testing, and real-user
+monitoring ideas are tracked separately in
+`future-testing-and-monitoring-ideas.md` and are not commitments for this CLI
+milestone.
+
 ## Operational and security requirements
 
 - [ ] Add response-size limits.
@@ -249,6 +276,10 @@ change the Jest fixture API.
 ## Current non-goals
 
 - Executing JavaScript in the current static HTML mode.
+- Browser-based verification and mobile layout measurement.
+- Development-server watch auditing.
+- Form submission workflows, external side effects, and AI-assisted seed data.
+- Real-user client-side monitoring and email notifications.
 - Automatically enabling every built-in audit module.
 - Automatically rewriting sitemap hosts without an explicit policy.
 - Running unrelated user unit tests from `peakflow test` by default.

@@ -62,8 +62,10 @@ async function runWebsiteJest(options, dependencies = {}) {
   return launchProcess({
     executable: process.execPath,
     args: [
+      "--disable-warning=ExperimentalWarning",
       "--experimental-vm-modules",
       jestPath,
+      "--colors",
       "--selectProjects",
       websiteProjectName,
       "--passWithNoTests"

@@ -63,8 +63,10 @@ describe(runWebsiteJest.name, () => {
     expect(request).toMatchObject({
       executable: process.execPath,
       args: [
+        "--disable-warning=ExperimentalWarning",
         "--experimental-vm-modules",
         path.join(projectDirectory, "node_modules/jest/bin/jest.js"),
+        "--colors",
         "--selectProjects",
         "website",
         "--passWithNoTests",

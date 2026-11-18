@@ -66,6 +66,7 @@ async function runWebsiteJest(options, dependencies = {}) {
       "--experimental-vm-modules",
       jestPath,
       "--colors",
+      options.verbose === true ? "--verbose" : "--verbose=false",
       "--selectProjects",
       websiteProjectName,
       "--passWithNoTests"

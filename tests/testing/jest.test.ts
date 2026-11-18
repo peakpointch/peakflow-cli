@@ -67,6 +67,7 @@ describe(runWebsiteJest.name, () => {
         "--experimental-vm-modules",
         path.join(projectDirectory, "node_modules/jest/bin/jest.js"),
         "--colors",
+        "--verbose=false",
         "--selectProjects",
         "website",
         "--passWithNoTests",
@@ -92,6 +93,21 @@ describe(runWebsiteJest.name, () => {
         },
       ),
     ).resolves.toEqual({ exitCode: 1, noTestsFound: true });
+  });
+
+  test("passes verbose output through to Jest", async () => {
+    const runProcess = jest.fn<RunJestProcess>(async () => ({
+      exitCode: 0,
+      noTestsFound: false,
+    }));
+
+    await runWebsiteJest(
+      { manifestPath: "website-snapshot.json", verbose: true },
+      { resolveJest: () => "jest.js", runProcess },
+    );
+
+    expect(runProcess.mock.calls[0]?.[0].args).toContain("--verbose");
+    expect(runProcess.mock.calls[0]?.[0].args).not.toContain("--verbose=false");
   });
 
   test("uses the existing config without running the independent unit project", async () => {

@@ -200,6 +200,12 @@ describe(addTestCommand.name, () => {
     ).resolves.toMatchObject({ sitemap: true, sitemapHost: "preserve" });
   });
 
+  test("parses verbose output mode", async () => {
+    await expect(
+      parseOptions(["test", "--url", "https://example.com", "--verbose"]),
+    ).resolves.toMatchObject({ verbose: true });
+  });
+
   test("rejects a non-HTTP URL", async () => {
     await expect(
       parseOptions(["test", "--url", "example.com"]),
@@ -225,6 +231,7 @@ describe(testAction.name, () => {
       expect(options).toEqual({
         manifestPath: capture.manifestPath,
         projectDirectory: "C:\\project",
+        verbose: false,
       });
       return { exitCode: 0, noTestsFound: false };
     });

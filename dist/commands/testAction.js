@@ -131,7 +131,8 @@ async function testAction(options, dependencies = {}) {
     );
     const result = await runJest({
       manifestPath: capture.manifestPath,
-      projectDirectory
+      projectDirectory,
+      verbose: options.verbose ?? false
     });
     if (result.noTestsFound) logNoTestsFound(actionLogger);
     logFetchErrors(capture.manifest.errors, selection.pages, actionLogger);
@@ -172,7 +173,7 @@ function addTestCommand(program, action = testAction) {
       "--sitemap-host <mode>",
       "Preserve sitemap hosts or rewrite page URLs to the target origin"
     ).choices(["preserve", "target"])
-  ).action(action);
+  ).option("--verbose", "Log every website test case").action(action);
 }
 export {
   addTestCommand,

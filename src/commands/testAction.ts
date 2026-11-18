@@ -33,6 +33,7 @@ export interface TestActionOptions {
   url: string;
   sitemap?: SitemapOption;
   sitemapHost?: SitemapHostMode;
+  verbose?: boolean;
 }
 
 export type TestActionHandler = (
@@ -228,6 +229,7 @@ export async function testAction(
     const result = await runJest({
       manifestPath: capture.manifestPath,
       projectDirectory,
+      verbose: options.verbose ?? false,
     });
     if (result.noTestsFound) logNoTestsFound(actionLogger);
 
@@ -280,5 +282,6 @@ export function addTestCommand(
         "Preserve sitemap hosts or rewrite page URLs to the target origin",
       ).choices(["preserve", "target"]),
     )
+    .option("--verbose", "Log every website test case")
     .action(action);
 }

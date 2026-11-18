@@ -21,6 +21,8 @@ export interface RunWebsiteJestOptions {
   manifestPath: string;
   /** User project directory containing Jest and its configuration. */
   projectDirectory?: string;
+  /** Whether Jest should print every individual test case. */
+  verbose?: boolean;
 }
 
 /** Process request used by the Jest bridge. */
@@ -150,6 +152,7 @@ export async function runWebsiteJest(
       "--experimental-vm-modules",
       jestPath,
       "--colors",
+      options.verbose === true ? "--verbose" : "--verbose=false",
       "--selectProjects",
       websiteProjectName,
       "--passWithNoTests",
